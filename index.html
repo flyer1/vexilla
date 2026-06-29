@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vexilla - Learn the Flags of the World</title>
+  <meta name="description" content="Master country flags, capitals, and geography with Vexilla. Interactive flashcards, progressive quizzes, matching games, and progress tracking.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar glass-panel">
+      <a href="#" class="logo-container" id="logo-link">
+        <div class="logo-icon">V</div>
+        <span class="logo-text">Vexilla</span>
+      </a>
+
+      <nav>
+        <ul class="nav-menu">
+          <li class="nav-item active" id="nav-dashboard">
+            <button onclick="app.switchView('dashboard')">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+              <span>Dashboard</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-flashcards">
+            <button onclick="app.switchView('flashcards')">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              <span>Flashcards</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-quiz">
+            <button onclick="app.switchView('quiz')">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Quiz Mode</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-match">
+            <button onclick="app.switchView('match')">
+              <svg viewBox="0 0 24 24"><path d="M4 15h2v3h12v-3h2v3c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2v-3zm11.41-7.59L17 9l-5 5-5-5 1.41-1.41L11 10.17V3h2v7.17l2.41-2.58z"/></svg>
+              <span>Match Game</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-encyclopedia">
+            <button onclick="app.switchView('encyclopedia')">
+              <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0-2-.9-2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+              <span>Encyclopedia</span>
+            </button>
+          </li>
+          <li class="nav-item" id="nav-map">
+            <button onclick="app.switchView('map')">
+              <svg viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+              <span>World Map</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="theme-toggle-btn" id="theme-toggle">
+          <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="theme-btn-text">Light Theme</span>
+        </button>
+        <button class="theme-toggle-btn" id="sound-toggle">
+          <svg viewBox="0 0 24 24" width="18" height="18"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span id="sound-btn-text">Sounds On</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="main-content">
+
+      <!-- ================= DASHBOARD VIEW ================= -->
+      <section id="dashboard-view" class="view-section active">
+        <header class="page-header">
+          <h1 class="page-title">Welcome back, Flag Explorer!</h1>
+          <p class="page-subtitle">Learn the flags of the world step-by-step. Select a level below to start.</p>
+        </header>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+          <div class="stat-card glass-panel">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stats-learned">0 / 197</span>
+              <span class="stat-label">Flags Mastered</span>
+            </div>
+          </div>
+
+          <div class="stat-card glass-panel">
+            <div class="stat-icon" style="color: var(--accent-purple);">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stats-highscore">0%</span>
+              <span class="stat-label">Best Quiz Score</span>
+            </div>
+          </div>
+
+          <div class="stat-card glass-panel">
+            <div class="stat-icon" style="color: var(--accent-orange);">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stats-streak">0 days</span>
+              <span class="stat-label">Daily Learning Streak</span>
+            </div>
+          </div>
+
+          <div class="stat-card glass-panel">
+            <div class="stat-icon" style="color: var(--accent-green);">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stats-achievements">0 / 8</span>
+              <span class="stat-label">Achievements</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Levels Selection -->
+        <div>
+          <h2 class="path-section-title">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Learning Levels
+          </h2>
+          <br>
+          <div class="levels-grid">
+            <!-- Level 1 Card -->
+            <div class="level-card glass-panel" onclick="app.startLevel(1)">
+              <div class="level-header">
+                <span class="level-badge level-1">Beginner</span>
+                <div class="level-stars">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+              </div>
+              <div>
+                <h3 class="level-title">Level 1: Iconic Flags</h3>
+                <p class="level-desc">Master the most recognizable and frequently seen flags (e.g., USA, France, Japan, Germany).</p>
+              </div>
+              <div class="level-progress-container">
+                <div class="level-progress-bar-bg">
+                  <div class="level-progress-bar" id="lvl1-progress-bar"></div>
+                </div>
+                <div class="level-progress-text">
+                  <span id="lvl1-progress-text">0% Mastered</span>
+                  <span id="lvl1-count-text">0 / 50 flags</span>
+                </div>
+              </div>
+              <button class="level-btn" onclick="event.stopPropagation(); app.startLevel(1)">Start Level 1</button>
+            </div>
+
+            <!-- Level 2 Card -->
+            <div class="level-card glass-panel" onclick="app.startLevel(2)">
+              <div class="level-header">
+                <span class="level-badge level-2">Intermediate</span>
+                <div class="level-stars">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+              </div>
+              <div>
+                <h3 class="level-title">Level 2: Global Colors</h3>
+                <p class="level-desc">Learn slightly more complex flags, focusing on national shapes, stars, and emblems.</p>
+              </div>
+              <div class="level-progress-container">
+                <div class="level-progress-bar-bg">
+                  <div class="level-progress-bar" id="lvl2-progress-bar" style="background: linear-gradient(to right, var(--accent-purple), var(--accent-cyan));"></div>
+                </div>
+                <div class="level-progress-text">
+                  <span id="lvl2-progress-text">0% Mastered</span>
+                  <span id="lvl2-count-text">0 / 89 flags</span>
+                </div>
+              </div>
+              <button class="level-btn" style="background: linear-gradient(135deg, var(--accent-purple) 0%, #7b2cbf 100%); box-shadow: var(--glow-purple);" onclick="event.stopPropagation(); app.startLevel(2)">Start Level 2</button>
+            </div>
+
+            <!-- Level 3 Card -->
+            <div class="level-card glass-panel" onclick="app.startLevel(3)">
+              <div class="level-header">
+                <span class="level-badge level-3">Expert</span>
+                <div class="level-stars">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+              </div>
+              <div>
+                <h3 class="level-title">Level 3: Vexillologist</h3>
+                <p class="level-desc">Take on complex, rare, or very similar flags with specialized emblems and histories.</p>
+              </div>
+              <div class="level-progress-container">
+                <div class="level-progress-bar-bg">
+                  <div class="level-progress-bar" id="lvl3-progress-bar" style="background: linear-gradient(to right, var(--accent-purple), var(--accent-red));"></div>
+                </div>
+                <div class="level-progress-text">
+                  <span id="lvl3-progress-text">0% Mastered</span>
+                  <span id="lvl3-count-text">0 / 58 flags</span>
+                </div>
+              </div>
+              <button class="level-btn" style="background: linear-gradient(135deg, var(--accent-red) 0%, #dc2626 100%); box-shadow: var(--glow-red);" onclick="event.stopPropagation(); app.startLevel(3)">Start Level 3</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Activities -->
+        <div class="quick-actions">
+          <div class="action-card glass-panel">
+            <div class="action-card-header">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <h3 class="action-card-title">Practice Quiz</h3>
+            </div>
+            <p class="page-subtitle" style="font-size: 0.9rem;">Test your knowledge! Set up a custom quiz with custom categories and modes.</p>
+            <div class="action-btn-group">
+              <button class="secondary-btn" onclick="app.switchView('quiz')">Go to Quizzes</button>
+            </div>
+          </div>
+
+          <div class="action-card glass-panel">
+            <div class="action-card-header">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent-purple)" stroke-width="2"><path d="M4 15h2v3h12v-3h2v3c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2v-3zm11.41-7.59L17 9l-5 5-5-5 1.41-1.41L11 10.17V3h2v7.17l2.41-2.58z"/></svg>
+              <h3 class="action-card-title">Speed Matching</h3>
+            </div>
+            <p class="page-subtitle" style="font-size: 0.9rem;">Match 8 flags with their countries in a rapid-fire memory grid. Beat your best time!</p>
+            <div class="action-btn-group">
+              <button class="secondary-btn" onclick="app.switchView('match')">Play Match</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= FLASHCARDS VIEW ================= -->
+      <section id="flashcards-view" class="view-section">
+        <header class="back-nav-container">
+          <button class="back-btn" onclick="app.switchView('dashboard')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <div>
+            <h1 class="page-title" id="study-level-title">Study Deck: Level 1</h1>
+            <p class="page-subtitle">Click the card to flip it and reveal the details. Flip back and forth!</p>
+          </div>
+        </header>
+
+        <div class="study-flow-container">
+          <!-- Card Progress -->
+          <div style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="study-progress-indicator">
+              <span id="study-progress-text">Card 1 of 35</span>
+              <span id="study-percent-text">0% Done</span>
+            </div>
+            <div class="study-progress-bar-bg">
+              <div class="study-progress-bar" id="study-progress-bar"></div>
+            </div>
+          </div>
+
+          <!-- The Interactive Flashcard Container -->
+          <div class="flashcard-container no-select" id="interactive-card">
+            <div class="flashcard">
+              <!-- FRONT FACE -->
+              <div class="card-face card-front">
+                <div class="flashcard-flag-box">
+                  <img src="" id="card-flag-img" class="flashcard-flag" alt="Flag to study">
+                </div>
+                <span class="card-prompt">Click to reveal details</span>
+              </div>
+              <!-- BACK FACE -->
+              <div class="card-face card-back">
+                <div class="card-details-header">
+                  <h2 class="country-name" id="card-country-name">France</h2>
+                  <div class="country-meta">
+                    <span id="card-meta-continent">Europe</span>
+                    <div class="meta-divider"></div>
+                    <span id="card-meta-difficulty">Level 1</span>
+                  </div>
+                </div>
+
+                <div class="card-details-body">
+                  <div class="detail-row">
+                    <span class="detail-label">Capital City</span>
+                    <span class="detail-value" id="card-capital-name">Paris</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Primary Colors</span>
+                    <span class="detail-value" id="card-colors">Blue, White, Red</span>
+                  </div>
+                  <div class="card-mnemonic-box" id="card-mnemonic">
+                    The French Tricolor. Blue is associated with liberty, white with equality, and red with fraternity.
+                  </div>
+                </div>
+
+                <span class="card-actions-hint">Click card to hide details</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Review Buttons -->
+          <div class="study-controls">
+            <button class="study-btn study-btn-review" id="study-btn-review" onclick="app.cardAction('review')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Needs Review
+            </button>
+            <button class="study-btn study-btn-learned" id="study-btn-learned" onclick="app.cardAction('learned')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              I Know It!
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= QUIZ VIEW ================= -->
+      <section id="quiz-view" class="view-section">
+        <header class="back-nav-container">
+          <button class="back-btn" onclick="app.switchView('dashboard')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <div>
+            <h1 class="page-title">Flag Challenge</h1>
+            <p class="page-subtitle">Test your knowledge. Build score multipliers for streak answers!</p>
+          </div>
+        </header>
+
+        <!-- Quiz Panel Screen -->
+        <div class="quiz-container" id="quiz-game-panel">
+          <div class="quiz-header">
+            <div class="quiz-badge">
+              <span>Question</span>
+              <strong id="quiz-q-num">1 / 10</strong>
+            </div>
+            <div class="quiz-badge" style="border-color: rgba(0, 242, 254, 0.2)">
+              <span>Streak</span>
+              <strong id="quiz-streak">0 🔥</strong>
+            </div>
+            <div class="quiz-badge">
+              <span>Score</span>
+              <strong id="quiz-score">0</strong>
+            </div>
+          </div>
+
+          <div class="quiz-progress-bar-bg" style="height: 4px; width:100%; background:rgba(255,255,255,0.05); border-radius: 2px;">
+            <div class="study-progress-bar" id="quiz-progress-bar" style="background:var(--accent-cyan); width:0%;"></div>
+          </div>
+
+          <!-- The Question Container -->
+          <div class="quiz-question-card glass-panel">
+            <div class="quiz-flag-box">
+              <img src="" id="quiz-flag-img" class="quiz-flag" alt="Quiz flag">
+            </div>
+            <p class="quiz-prompt" id="quiz-question-text">Which country does this flag belong to?</p>
+          </div>
+
+          <!-- Options Grid -->
+          <div class="quiz-options-grid" id="quiz-options-container">
+            <button class="quiz-option" onclick="app.checkAnswer(0)">
+              <span class="quiz-option-letter">A</span>
+              <span class="quiz-option-text">Option A</span>
+            </button>
+            <button class="quiz-option" onclick="app.checkAnswer(1)">
+              <span class="quiz-option-letter">B</span>
+              <span class="quiz-option-text">Option B</span>
+            </button>
+            <button class="quiz-option" onclick="app.checkAnswer(2)">
+              <span class="quiz-option-letter">C</span>
+              <span class="quiz-option-text">Option C</span>
+            </button>
+            <button class="quiz-option" onclick="app.checkAnswer(3)">
+              <span class="quiz-option-letter">D</span>
+              <span class="quiz-option-text">Option D</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quiz Complete Summary Screen -->
+        <div class="summary-container glass-panel" id="quiz-summary-panel" style="display: none;">
+          <div class="summary-score-circle">
+            <span class="summary-score-value" id="sum-score">80%</span>
+            <span class="summary-score-label">accuracy</span>
+          </div>
+
+          <div>
+            <h2 class="summary-title" id="sum-title">Fantastic Effort!</h2>
+            <p class="page-subtitle" id="sum-subtitle" style="margin-top:0.5rem;">You correctly answered 8 out of 10 questions.</p>
+          </div>
+
+          <div class="summary-stat-row">
+            <div class="summary-stat">
+              <span class="summary-stat-val" id="sum-points" style="color: var(--accent-cyan);">+80 XP</span>
+              <span class="summary-stat-lbl">Points Gained</span>
+            </div>
+            <div class="summary-stat" style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 1.5rem;">
+              <span class="summary-stat-val" id="sum-max-streak" style="color: var(--accent-orange);">5 🔥</span>
+              <span class="summary-stat-lbl">Max Streak</span>
+            </div>
+          </div>
+
+          <div class="summary-btn-group">
+            <button class="secondary-btn" onclick="app.restartQuiz()">Restart Quiz</button>
+            <button class="level-btn" onclick="app.switchView('dashboard')">Home</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= MATCHING GAME VIEW ================= -->
+      <section id="match-view" class="view-section">
+        <header class="back-nav-container">
+          <button class="back-btn" onclick="app.switchView('dashboard')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          </button>
+          <div>
+            <h1 class="page-title">Speed Match</h1>
+            <p class="page-subtitle">Match the flags on the left with their country names on the right as fast as possible.</p>
+          </div>
+        </header>
+
+        <div class="game-controls-header">
+          <div class="quiz-badge" style="border-color: rgba(0, 242, 254, 0.2);">
+            <span>Time</span>
+            <strong id="match-timer">00:00</strong>
+          </div>
+          <div class="quiz-badge">
+            <span>Pairs Left</span>
+            <strong id="match-left">6 / 6</strong>
+          </div>
+        </div>
+
+        <!-- Grid Container for matching cards -->
+        <div class="match-grid-container" id="match-board">
+          <!-- Cards are generated dynamically in JS -->
+        </div>
+
+        <!-- Matching Game Over Modal Overlay -->
+        <div class="summary-container glass-panel" id="match-summary-panel" style="display: none; max-width: 500px;">
+          <div class="summary-score-circle" style="border-color: var(--accent-purple); box-shadow: var(--glow-purple);">
+            <span class="summary-score-value" id="match-sum-time" style="font-size: 2.25rem;">12.4s</span>
+            <span class="summary-score-label">duration</span>
+          </div>
+
+          <div>
+            <h2 class="summary-title" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Speed Demon!</h2>
+            <p class="page-subtitle" id="match-sum-subtitle" style="margin-top:0.5rem;">You matched all 6 pairs in record time.</p>
+          </div>
+
+          <div class="summary-btn-group">
+            <button class="secondary-btn" onclick="app.startMatchGame()">Play Again</button>
+            <button class="level-btn" style="background: linear-gradient(135deg, var(--accent-purple) 0%, #7b2cbf 100%); box-shadow: var(--glow-purple);" onclick="app.switchView('dashboard')">Home</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ENCYCLOPEDIA VIEW ================= -->
+      <section id="encyclopedia-view" class="view-section">
+        <header class="page-header">
+          <h1 class="page-title">Flag Atlas & Encyclopedia</h1>
+          <p class="page-subtitle">Search and filter through all 197 country flags. Click a flag to learn more about its geography and design history.</p>
+        </header>
+
+        <!-- Search & Filter Controls Panel -->
+        <div class="search-filter-panel glass-panel">
+          <div class="search-box-container">
+            <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="search-input" id="atlas-search-input" placeholder="Search by country name, capital, or color..." oninput="app.filterAtlas()">
+          </div>
+          <p class="filter-hint">Click a tag to switch filters. Hold Ctrl while clicking to combine tags.</p>
+
+          <div class="filters-wrapper">
+            <!-- Continent Filter -->
+            <div class="filter-group">
+              <span class="filter-label">Continent</span>
+              <button class="filter-tag active" data-filter="continent" data-value="all" onclick="app.selectFilter(this, event)">All</button>
+              <button class="filter-tag" data-filter="continent" data-value="Europe" onclick="app.selectFilter(this, event)">Europe</button>
+              <button class="filter-tag" data-filter="continent" data-value="Asia" onclick="app.selectFilter(this, event)">Asia</button>
+              <button class="filter-tag" data-filter="continent" data-value="Americas" onclick="app.selectFilter(this, event)">Americas</button>
+              <button class="filter-tag" data-filter="continent" data-value="Africa" onclick="app.selectFilter(this, event)">Africa</button>
+              <button class="filter-tag" data-filter="continent" data-value="Oceania" onclick="app.selectFilter(this, event)">Oceania</button>
+            </div>
+
+            <!-- Color Filter -->
+            <div class="filter-group">
+              <span class="filter-label">Colors</span>
+              <button class="filter-tag active" data-filter="color" data-value="all" onclick="app.selectFilter(this, event)">All</button>
+              <button class="filter-tag" data-filter="color" data-value="red" onclick="app.selectFilter(this, event)">Red</button>
+              <button class="filter-tag" data-filter="color" data-value="blue" onclick="app.selectFilter(this, event)">Blue</button>
+              <button class="filter-tag" data-filter="color" data-value="green" onclick="app.selectFilter(this, event)">Green</button>
+              <button class="filter-tag" data-filter="color" data-value="yellow" onclick="app.selectFilter(this, event)">Yellow</button>
+              <button class="filter-tag" data-filter="color" data-value="white" onclick="app.selectFilter(this, event)">White</button>
+              <button class="filter-tag" data-filter="color" data-value="black" onclick="app.selectFilter(this, event)">Black</button>
+            </div>
+
+            <!-- Design Elements Filter -->
+            <div class="filter-group">
+              <span class="filter-label">Features</span>
+              <button class="filter-tag active" data-filter="feature" data-value="all" onclick="app.selectFilter(this, event)">All</button>
+              <button class="filter-tag" data-filter="feature" data-value="horizontal-stripes" onclick="app.selectFilter(this, event)">Horizontal Stripes</button>
+              <button class="filter-tag" data-filter="feature" data-value="vertical-stripes" onclick="app.selectFilter(this, event)">Vertical Stripes</button>
+              <button class="filter-tag" data-filter="feature" data-value="stars" onclick="app.selectFilter(this, event)">Stars</button>
+              <button class="filter-tag" data-filter="feature" data-value="cross" onclick="app.selectFilter(this, event)">Crosses</button>
+              <button class="filter-tag" data-filter="feature" data-value="crescent" onclick="app.selectFilter(this, event)">Crescent / Moon</button>
+              <button class="filter-tag" data-filter="feature" data-value="emblem" onclick="app.selectFilter(this, event)">Emblems</button>
+              <button class="filter-tag" data-filter="feature" data-value="circle" onclick="app.selectFilter(this, event)">Circles</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flag Atlas Grid -->
+        <div class="encyclopedia-grid" id="encyclopedia-grid-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </section>
+
+      <!-- ================= WORLD MAP VIEW ================= -->
+      <section id="map-view" class="view-section">
+        <header class="page-header">
+          <h1 class="page-title">World Map</h1>
+          <p class="page-subtitle">Explore country outlines on a Mercator map with flag markers placed inside each country where the map data can be matched.</p>
+        </header>
+
+        <div class="map-panel glass-panel">
+          <div class="map-toolbar">
+            <div>
+              <span class="map-kicker">Mercator Projection</span>
+              <h2 class="map-title">Flag Geography</h2>
+            </div>
+            <div class="map-stats">
+              <span id="map-match-count">Loading map...</span>
+            </div>
+          </div>
+
+          <div class="map-controls" aria-label="Map controls">
+            <button class="map-control-btn" id="map-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">
+              <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="map-control-btn" id="map-zoom-reset" type="button" aria-label="Reset zoom" title="Reset zoom">
+              <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/></svg>
+            </button>
+            <button class="map-control-btn" id="map-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span class="map-zoom-value" id="map-zoom-value">100%</span>
+          </div>
+
+          <div class="map-scroll-container" id="world-map-scroll">
+            <div class="map-loading" id="map-loading">Loading country boundaries...</div>
+            <svg id="world-map-svg" class="world-map-svg" viewBox="0 0 1600 900" role="img" aria-label="World map with flag markers"></svg>
+            <div class="map-flag-popover" id="map-flag-popover" aria-hidden="true">
+              <img id="map-popover-flag" src="" alt="">
+              <div class="map-popover-body">
+                <h3 id="map-popover-title"></h3>
+                <p id="map-popover-fact"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ACHIEVEMENTS / PROGRESS PANEL ================= -->
+      <section id="achievements-view" class="view-section">
+        <header class="page-header">
+          <h1 class="page-title">Progress & Achievements</h1>
+          <p class="page-subtitle">Unlock cards by studying and score perfect marks in quizzes to earn special medals.</p>
+        </header>
+
+        <!-- Achievements Grid -->
+        <div class="achievements-grid" id="achievements-list">
+          <!-- Loaded dynamically from app.js -->
+        </div>
+
+        <!-- App Settings -->
+        <br><br>
+        <header class="page-header">
+          <h2 class="page-title" style="font-size: 1.5rem;">Settings</h2>
+        </header>
+
+        <div class="settings-panel glass-panel">
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Sound Effects</span>
+              <span class="settings-desc">Play satisfying audio tones when answering quizzes or completing levels.</span>
+            </div>
+            <div class="settings-action">
+              <label class="switch">
+                <input type="checkbox" id="settings-sound-switch" checked onchange="app.toggleSoundFromSettings(this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Light / Dark Theme</span>
+              <span class="settings-desc">Toggle the global app appearance.</span>
+            </div>
+            <div class="settings-action">
+              <label class="switch">
+                <input type="checkbox" id="settings-theme-switch" onchange="app.toggleThemeFromSettings(this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Progress Backup</span>
+              <span class="settings-desc">Save your progress outside the browser, or restore it after moving to a new browser profile.</span>
+            </div>
+            <div class="settings-action settings-action-group">
+              <button class="secondary-btn compact-btn" onclick="app.exportProgressBackup()">Download Backup</button>
+              <button class="secondary-btn compact-btn" onclick="app.copyProgressBackup()">Copy Backup</button>
+              <button class="secondary-btn compact-btn" onclick="document.getElementById('progress-import-input').click()">Restore Backup</button>
+              <input type="file" id="progress-import-input" accept="application/json,.json" hidden onchange="app.importProgressBackup(this)">
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label" style="color: var(--accent-red)">Reset Progress</span>
+              <span class="settings-desc">Permanently erase all memorized cards, high scores, streaks, and achievements. This cannot be undone.</span>
+            </div>
+            <div class="settings-action">
+              <button class="danger-btn" onclick="app.resetProgressData()">Reset Data</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Detailed Flag Info Modal Overlay -->
+  <div class="modal-overlay" id="flag-detail-modal" onclick="app.closeModal()">
+    <div class="modal-content glass-panel" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="app.closeModal()">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      
+      <div class="modal-flag-box">
+        <img src="" id="modal-flag-img" alt="Detail flag">
+      </div>
+
+      <h2 class="modal-title" id="modal-country-name">Japan</h2>
+
+      <div class="modal-details-grid">
+        <div class="modal-detail-item">
+          <span class="modal-detail-lbl">Capital City</span>
+          <span class="modal-detail-val" id="modal-capital">Tokyo</span>
+        </div>
+        <div class="modal-detail-item">
+          <span class="modal-detail-lbl">Continent</span>
+          <span class="modal-detail-val" id="modal-continent">Asia</span>
+        </div>
+        <div class="modal-detail-item">
+          <span class="modal-detail-lbl">Difficulty</span>
+          <span class="modal-detail-val" id="modal-difficulty">Level 1</span>
+        </div>
+        <div class="modal-detail-item">
+          <span class="modal-detail-lbl">Colors</span>
+          <span class="modal-detail-val" id="modal-colors">White, Red</span>
+        </div>
+      </div>
+
+      <div class="card-mnemonic-box" id="modal-mnemonic">
+        Known as Hinomaru (circle of the sun). A solid red disk representing the rising sun centered on a plain white field.
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Load Data and App Controller -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
