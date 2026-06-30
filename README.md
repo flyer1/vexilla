@@ -27,13 +27,19 @@ The home base for your learning progress. See mastered flags, quiz high score, d
 
 Study flags level by level. Flip a card to reveal the country, capital, continent, colors, and a mnemonic-style fact. Mark each flag as learned or needing review.
 
+<img src="images/flashcards.PNG" alt="Vexilla flashcards screen" width="650">
+
 ### Quiz Mode
 
 Test recognition with multiple-choice questions. Vexilla tracks accuracy, score, streaks, and your best result.
 
+<img src="images/quiz-mode.PNG" alt="Vexilla quiz mode screen" width="650">
+
 ### Speed Match
 
 A faster memory challenge: match flags to country names as quickly as possible.
+
+<img src="images/match-game.PNG" alt="Vexilla speed match game screen" width="650">
 
 ### Encyclopedia
 
@@ -41,25 +47,82 @@ Search the full flag collection by country, capital, or color. Filter by contine
 
 Tip: click one filter pill to switch filters in that category, or hold `Ctrl` while clicking to combine multiple pills.
 
+<img src="images/encyclopedia.PNG" alt="Vexilla flag encyclopedia screen" width="650">
+
 ### World Map
 
 Explore the world visually. The map uses country boundary data and places each matching flag marker near its country. You can zoom, pan, hover for a flag preview and fact, and click a marker to open the full flag detail modal.
 
+<img src="images/world-map.PNG" alt="Vexilla world map screen" width="650">
+
 ## Quick Start
 
-Vexilla is a static JavaScript app. You can run it locally with the included zero-dependency Node server:
+Vexilla runs in your web browser. To start it on your own computer, you need a small helper program called **Node.js**. You do not need to know JavaScript or install any complicated developer tools.
+
+### Step 1: Download Vexilla
+
+On the GitHub page, click the green **Code** button, then choose **Download ZIP**.
+
+After the ZIP file downloads:
+
+1. Open your Downloads folder.
+2. Right-click the Vexilla ZIP file.
+3. Choose **Extract All**.
+4. Open the extracted `vexilla` folder.
+
+### Step 2: Install Node.js
+
+1. Go to [https://nodejs.org](https://nodejs.org).
+2. Download the version marked **LTS**.
+3. Open the installer.
+4. Keep clicking **Next** through the default options.
+5. Click **Install**.
+6. When it finishes, click **Finish**.
+
+### Step 3: Open A Terminal In The Vexilla Folder
+
+On Windows:
+
+1. Open the extracted `vexilla` folder.
+2. Click the address bar at the top of File Explorer.
+3. Type `powershell`.
+4. Press `Enter`.
+
+A PowerShell window should open already pointed at the Vexilla folder.
+
+### Step 4: Start Vexilla
+
+In that PowerShell window, type:
 
 ```bash
 node server.js
 ```
 
-Then open:
+Then press `Enter`.
+
+You should see a message that says Vexilla is running at:
 
 ```text
 http://localhost:8000/
 ```
 
-You can also serve the folder with any static file server.
+### Step 5: Open The App
+
+Open Chrome, Edge, Firefox, or your favorite browser, then go to:
+
+[http://localhost:8000/](http://localhost:8000/)
+
+To stop Vexilla later, go back to the PowerShell window and press `Ctrl+C`.
+
+### Already Comfortable With The Command Line?
+
+Vexilla is a static JavaScript app with a tiny zero-dependency local server:
+
+```bash
+node server.js
+```
+
+No package install or build step is required.
 
 ## Project Structure
 
