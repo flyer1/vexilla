@@ -1363,6 +1363,7 @@ h1, h2, h3, h4 {
   transition: fill 0.12s ease, stroke 0.12s ease, stroke-width 0.12s ease, filter 0.12s ease;
 }
 
+.map-country:hover,
 .map-country.is-hovered {
   fill: rgba(0, 242, 254, 0.18);
   stroke: var(--accent-cyan);
@@ -1370,6 +1371,7 @@ h1, h2, h3, h4 {
   filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.38));
 }
 
+[data-theme="light"] .map-country:hover,
 [data-theme="light"] .map-country.is-hovered {
   fill: rgba(0, 132, 184, 0.16);
   stroke: #0078a8;
