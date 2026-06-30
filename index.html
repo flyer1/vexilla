@@ -524,7 +524,14 @@
               <h2 class="map-title">Flag Geography</h2>
             </div>
             <div class="map-stats">
-              <span id="map-match-count">Loading map...</span>
+              <button class="map-stats-button" id="map-unplaced-toggle" type="button" aria-expanded="false" aria-controls="map-unplaced-panel">
+                <span id="map-match-count">Loading map...</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="map-unplaced-panel" id="map-unplaced-panel" aria-hidden="true">
+                <div class="map-unplaced-list" id="map-unplaced-list"></div>
+                <div class="map-unplaced-detail" id="map-unplaced-detail"></div>
+              </div>
             </div>
           </div>
 
