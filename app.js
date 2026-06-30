@@ -44,6 +44,7 @@ class VexillaApp {
     // World map state
     this.mapRendered = false;
     this.mapDataUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+    this.flagImageCache = new Map();
 
     // Web Audio Context (lazy-loaded on user interaction)
     this.audioCtx = null;
@@ -1036,7 +1037,14 @@ class VexillaApp {
   openFlagModal(flag) {
     this.playAudioTone(440, 'sine', 0.05);
 
-    document.getElementById('modal-flag-img').src = `https://flagcdn.com/w320/${flag.code}.png`;
+    const modalFlagImg = document.getElementById('modal-flag-img');
+    modalFlagImg.alt = `${flag.name} flag`;
+    modalFlagImg.dataset.flagCode = flag.code;
+    this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
+      if (modalFlagImg.dataset.flagCode === flag.code && modalFlagImg.getAttribute('src') !== flagSrc) {
+        modalFlagImg.src = flagSrc;
+      }
+    });
     document.getElementById('modal-country-name').textContent = flag.name;
     document.getElementById('modal-capital').textContent = flag.capital;
     document.getElementById('modal-continent').textContent = flag.continent;
@@ -1127,6 +1135,44 @@ class VexillaApp {
     return flagLookup.get(this.normalizeCountryName(targetName)) || null;
   }
 
+  getFlagImageCdnSrc(code, width = 320) {
+    return `https://flagcdn.com/w${width}/${code}.png`;
+  }
+
+  getCachedFlagImageSrc(code, width = 320) {
+    const cacheKey = `${width}:${code}`;
+    const cached = this.flagImageCache.get(cacheKey);
+    if (cached?.objectUrl) return Promise.resolve(cached.objectUrl);
+    if (cached?.promise) return cached.promise;
+
+    const cdnSrc = this.getFlagImageCdnSrc(code, width);
+    const cacheEntry = {
+      objectUrl: '',
+      promise: fetch(cdnSrc, { cache: 'force-cache' })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Unable to cache flag image: ${response.status}`);
+          return response.blob();
+        })
+        .then((blob) => {
+          const objectUrl = URL.createObjectURL(blob);
+          cacheEntry.objectUrl = objectUrl;
+          return objectUrl;
+        })
+        .catch((error) => {
+          console.warn('Falling back to CDN flag image:', error);
+          cacheEntry.objectUrl = cdnSrc;
+          return cdnSrc;
+        }),
+    };
+
+    this.flagImageCache.set(cacheKey, cacheEntry);
+    return cacheEntry.promise;
+  }
+
+  preloadFlagImage(code, width = 320) {
+    this.getCachedFlagImageSrc(code, width);
+  }
+
   async renderWorldMap() {
     const svg = document.getElementById('world-map-svg');
     const loading = document.getElementById('map-loading');
@@ -1192,7 +1238,9 @@ class VexillaApp {
         .append('title')
         .text((d) => d.properties?.name || 'Country');
 
+      let activeHighlightedFlagCode = '';
       const clearCountryHighlight = () => {
+        activeHighlightedFlagCode = '';
         countryLayer.selectAll('.map-country').classed('is-hovered', false);
       };
 
@@ -1205,11 +1253,13 @@ class VexillaApp {
       };
 
       const highlightCountryByFlagCode = (flagCode) => {
+        if (activeHighlightedFlagCode === flagCode) return;
         clearCountryHighlight();
         countryLayer
           .selectAll('.map-country')
           .filter((d) => getFlagForCountry(d)?.code === flagCode)
           .classed('is-hovered', true);
+        activeHighlightedFlagCode = flagCode;
       };
 
       const markers = countries
@@ -1238,37 +1288,59 @@ class VexillaApp {
           return orderA - orderB || a.name.localeCompare(b.name);
         });
 
-      const renderUnplacedDetail = (flag) => {
-        if (!unplacedDetail || !flag) return;
+      let activeUnplacedFlagCode = '';
+      let unplacedPreview = null;
+      const getUnplacedPreview = () => {
+        if (!unplacedDetail) return null;
+        if (unplacedPreview) return unplacedPreview;
+
         unplacedDetail.textContent = '';
+
+        const flagBox = document.createElement('div');
+        flagBox.className = 'map-unplaced-detail-flag-box';
 
         const flagImg = document.createElement('img');
         flagImg.className = 'map-unplaced-detail-flag';
-        flagImg.src = `https://flagcdn.com/w320/${flag.code}.png`;
-        flagImg.alt = `${flag.name} flag`;
+        flagImg.loading = 'eager';
+        flagImg.decoding = 'async';
+        flagBox.appendChild(flagImg);
 
         const title = document.createElement('h3');
-        title.textContent = flag.name;
-
         const meta = document.createElement('div');
         meta.className = 'map-unplaced-detail-meta';
 
         const continent = document.createElement('span');
-        continent.textContent = flag.continent;
-        meta.appendChild(continent);
-
         const capital = document.createElement('span');
-        capital.textContent = `Capital: ${flag.capital}`;
-        meta.appendChild(capital);
-
         const difficulty = document.createElement('span');
-        difficulty.textContent = `Level ${flag.difficulty}`;
-        meta.appendChild(difficulty);
+        meta.append(continent, capital, difficulty);
 
         const fact = document.createElement('p');
-        fact.textContent = flag.fact;
 
-        unplacedDetail.append(flagImg, title, meta, fact);
+        unplacedDetail.append(flagBox, title, meta, fact);
+        unplacedPreview = { flagImg, title, continent, capital, difficulty, fact };
+        return unplacedPreview;
+      };
+
+      const renderUnplacedDetail = (flag) => {
+        if (!flag) return;
+        if (activeUnplacedFlagCode === flag.code) return;
+        const preview = getUnplacedPreview();
+        if (!preview) return;
+
+        preview.flagImg.alt = `${flag.name} flag`;
+        preview.title.textContent = flag.name;
+        preview.continent.textContent = flag.continent;
+        preview.capital.textContent = `Capital: ${flag.capital}`;
+        preview.difficulty.textContent = `Level ${flag.difficulty}`;
+        preview.fact.textContent = flag.fact;
+        activeUnplacedFlagCode = flag.code;
+
+        this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
+          if (activeUnplacedFlagCode !== flag.code) return;
+          if (preview.flagImg.getAttribute('src') !== flagSrc) {
+            preview.flagImg.src = flagSrc;
+          }
+        });
       };
 
       const selectUnplacedFlag = (button, flag) => {
@@ -1347,6 +1419,7 @@ class VexillaApp {
           const isOpen = unplacedPanel.classList.toggle('active');
           unplacedPanel.setAttribute('aria-hidden', String(!isOpen));
           unplacedToggle.setAttribute('aria-expanded', String(isOpen));
+          if (isOpen) unplacedFlags.forEach((flag) => this.preloadFlagImage(flag.code, 320));
         });
 
         unplacedPanel.addEventListener('click', (event) => event.stopPropagation());
@@ -1363,12 +1436,24 @@ class VexillaApp {
         popover.setAttribute('aria-hidden', 'true');
       };
 
+      let activePopoverFlagCode = '';
       const showPopover = (flag, clientX, clientY) => {
         if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverFact) return;
-        popoverFlag.src = `https://flagcdn.com/w320/${flag.code}.png`;
-        popoverFlag.alt = `${flag.name} flag`;
-        popoverTitle.textContent = flag.name;
-        popoverFact.textContent = flag.fact;
+
+        if (activePopoverFlagCode !== flag.code) {
+          popoverFlag.alt = `${flag.name} flag`;
+          popoverTitle.textContent = flag.name;
+          popoverFact.textContent = flag.fact;
+          activePopoverFlagCode = flag.code;
+
+          this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
+            if (activePopoverFlagCode !== flag.code) return;
+            if (popoverFlag.getAttribute('src') !== flagSrc) {
+              popoverFlag.src = flagSrc;
+            }
+          });
+        }
+
         popover.classList.add('active');
         popover.setAttribute('aria-hidden', 'false');
 
