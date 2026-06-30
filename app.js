@@ -1172,6 +1172,10 @@ class VexillaApp {
       const flagLookup = new Map(this.flags.map(flag => [this.normalizeCountryName(flag.name), flag]));
       const aliases = this.getMapNameAliases();
       const markerOverrides = this.getMapMarkerOverrides();
+      const getFlagForCountry = country => {
+        const mapName = country.properties?.name || '';
+        return this.getFlagByMapName(mapName, flagLookup, aliases);
+      };
 
       d3svg.selectAll('*').remove();
 
@@ -1187,15 +1191,37 @@ class VexillaApp {
         .selectAll('path')
         .data(countries)
         .join('path')
-        .attr('class', 'map-country')
+        .attr('class', d => getFlagForCountry(d) ? 'map-country has-flag-data' : 'map-country')
+        .attr('data-flag-code', d => getFlagForCountry(d)?.code || '')
         .attr('d', path)
+        .on('mouseenter', (event, d) => highlightCountry(d))
+        .on('mouseleave', () => clearCountryHighlight())
         .append('title')
         .text(d => d.properties?.name || 'Country');
 
+      const clearCountryHighlight = () => {
+        countryLayer.selectAll('.map-country').classed('is-hovered', false);
+      };
+
+      const highlightCountry = country => {
+        clearCountryHighlight();
+        countryLayer
+          .selectAll('.map-country')
+          .filter(d => d === country)
+          .classed('is-hovered', true);
+      };
+
+      const highlightCountryByFlagCode = flagCode => {
+        clearCountryHighlight();
+        countryLayer
+          .selectAll('.map-country')
+          .filter(d => getFlagForCountry(d)?.code === flagCode)
+          .classed('is-hovered', true);
+      };
+
       const markers = countries
         .map(country => {
-          const mapName = country.properties?.name || '';
-          const flag = this.getFlagByMapName(mapName, flagLookup, aliases);
+          const flag = getFlagForCountry(country);
           if (!flag) return null;
           const overrideCoords = markerOverrides[flag.code];
           const [x, y] = overrideCoords ? projection(overrideCoords) : path.centroid(country);
@@ -1241,6 +1267,7 @@ class VexillaApp {
       };
 
       const showPopoverForMarker = (event, d) => {
+        highlightCountryByFlagCode(d.flag.code);
         showPopover(d.flag, event.clientX, event.clientY);
       };
 
@@ -1260,12 +1287,19 @@ class VexillaApp {
         })
         .on('mouseenter', showPopoverForMarker)
         .on('mousemove', showPopoverForMarker)
-        .on('mouseleave', hidePopover)
+        .on('mouseleave', () => {
+          hidePopover();
+          clearCountryHighlight();
+        })
         .on('focus', (event, d) => {
           const rect = event.currentTarget.getBoundingClientRect();
+          highlightCountryByFlagCode(d.flag.code);
           showPopover(d.flag, rect.left + rect.width / 2, rect.top + rect.height / 2);
         })
-        .on('blur', hidePopover)
+        .on('blur', () => {
+          hidePopover();
+          clearCountryHighlight();
+        })
         .on('keydown', (event, d) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -1327,6 +1361,7 @@ class VexillaApp {
           countryLayer.attr('transform', event.transform);
           renderZoomedMarkers(event.transform);
           hidePopover();
+          clearCountryHighlight();
           if (event.sourceEvent && event.sourceEvent.type === 'mousemove') {
             d3svg.node().classList.add('is-dragging');
           }
@@ -1341,14 +1376,20 @@ class VexillaApp {
       d3svg.on('mousemove.map-popover-bg', event => {
         if (!event.target.closest || !event.target.closest('.flag-marker')) hidePopover();
       });
-      d3svg.on('mouseleave.map-popover', hidePopover);
+      d3svg.on('mouseleave.map-popover', () => {
+        hidePopover();
+        clearCountryHighlight();
+      });
       d3svg.on('auxclick.prevent-middle-pan', event => {
         if (event.button === 1) event.preventDefault();
       });
       d3svg.on('mousedown.prevent-middle-pan', event => {
         if (event.button === 1) event.preventDefault();
       });
-      if (mapContainer) mapContainer.addEventListener('mouseleave', hidePopover);
+      if (mapContainer) mapContainer.addEventListener('mouseleave', () => {
+        hidePopover();
+        clearCountryHighlight();
+      });
       renderZoomedMarkers(window.d3.zoomIdentity);
 
       const zoomInBtn = document.getElementById('map-zoom-in');

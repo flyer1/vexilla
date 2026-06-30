@@ -1360,6 +1360,20 @@ h1, h2, h3, h4 {
   stroke: rgba(255, 255, 255, 0.22);
   stroke-width: 0.8;
   vector-effect: non-scaling-stroke;
+  transition: fill 0.12s ease, stroke 0.12s ease, stroke-width 0.12s ease, filter 0.12s ease;
+}
+
+.map-country.is-hovered {
+  fill: rgba(0, 242, 254, 0.18);
+  stroke: var(--accent-cyan);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.38));
+}
+
+[data-theme="light"] .map-country.is-hovered {
+  fill: rgba(0, 132, 184, 0.16);
+  stroke: #0078a8;
+  filter: drop-shadow(0 0 7px rgba(0, 120, 168, 0.24));
 }
 
 .flag-marker {
