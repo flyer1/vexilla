@@ -79,26 +79,13 @@ After the ZIP file downloads:
 5. Click **Install**.
 6. When it finishes, click **Finish**.
 
-### Step 3: Open A Terminal In The Vexilla Folder
+### Step 3: Start Vexilla
 
 On Windows:
 
 1. Open the extracted `vexilla` folder.
-2. Click the address bar at the top of File Explorer.
-3. Type `powershell`.
-4. Press `Enter`.
-
-A PowerShell window should open already pointed at the Vexilla folder.
-
-### Step 4: Start Vexilla
-
-In that PowerShell window, type:
-
-```bash
-node server.js
-```
-
-Then press `Enter`.
+2. Double-click `run-game.bat`.
+3. A black command window should open and start Vexilla.
 
 You should see a message that says Vexilla is running at:
 
@@ -106,13 +93,15 @@ You should see a message that says Vexilla is running at:
 http://localhost:8000/
 ```
 
-### Step 5: Open The App
+Leave that command window open while you play. If you close it, Vexilla stops running.
+
+### Step 4: Open The App
 
 Open Chrome, Edge, Firefox, or your favorite browser, then go to:
 
 [http://localhost:8000/](http://localhost:8000/)
 
-To stop Vexilla later, go back to the PowerShell window and press `Ctrl+C`.
+To stop Vexilla later, go back to the command window and press `Ctrl+C`, or close the window.
 
 ### Already Comfortable With The Command Line?
 
