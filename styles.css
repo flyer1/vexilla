@@ -1330,6 +1330,37 @@ h1, h2, h3, h4 {
   border-right: 1px solid var(--panel-border);
 }
 
+.map-unplaced-continent-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.4rem 0 0.35rem;
+  color: var(--accent-cyan);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-unplaced-continent-header:first-child {
+  margin-top: 0.05rem;
+}
+
+.map-unplaced-continent-header::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, rgba(0, 242, 254, 0.35), transparent);
+}
+
+[data-theme="light"] .map-unplaced-continent-header {
+  color: #0078a8;
+}
+
+[data-theme="light"] .map-unplaced-continent-header::after {
+  background: linear-gradient(to right, rgba(0, 120, 168, 0.3), transparent);
+}
+
 .map-unplaced-item {
   width: 100%;
   min-height: 54px;

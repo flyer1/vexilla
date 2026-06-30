@@ -1291,7 +1291,16 @@ class VexillaApp {
         unplacedList.textContent = '';
         unplacedDetail.textContent = '';
 
+        let activeContinent = '';
         unplacedFlags.forEach((flag, index) => {
+          if (flag.continent !== activeContinent) {
+            activeContinent = flag.continent;
+            const continentHeader = document.createElement('div');
+            continentHeader.className = 'map-unplaced-continent-header';
+            continentHeader.textContent = activeContinent;
+            unplacedList.appendChild(continentHeader);
+          }
+
           const item = document.createElement('button');
           item.className = 'map-unplaced-item';
           item.type = 'button';
