@@ -445,7 +445,7 @@ class VexillaApp {
     if (streakSpan) streakSpan.textContent = `${this.state.streak} day${this.state.streak === 1 ? '' : 's'}`;
 
     const achievementSpan = document.getElementById('stats-achievements');
-    if (achievementSpan) achievementSpan.textContent = `${this.state.unlockedAchievements.length} / 8`;
+    if (achievementSpan) achievementSpan.textContent = `${this.state.unlockedAchievements.length} / ${this.getAchievementsDefinition().length}`;
 
     // Level Progress Bars
     const levels = [1, 2, 3];
@@ -1700,6 +1700,16 @@ class VexillaApp {
   }
 
   getAchievementsDefinition() {
+    const learnedSet = new Set(this.state.learnedFlags);
+    const totalFlags = this.flags.length;
+    const masteredCount = this.state.learnedFlags.length;
+    const reviewedCount = this.state.needReviewFlags.length;
+    const masteredAtLeast = (count) => masteredCount >= count;
+    const masteredAll = (flags) => flags.length > 0 && flags.every((flag) => learnedSet.has(flag.code));
+    const masteredDifficulty = (difficulty) => masteredAll(this.flags.filter((flag) => flag.difficulty === difficulty));
+    const masteredContinent = (continent) => masteredAll(this.flags.filter((flag) => flag.continent === continent));
+    const masteredContinentCount = (continent, count) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length >= count;
+
     return [
       {
         id: 'first_steps',
@@ -1709,18 +1719,151 @@ class VexillaApp {
         check: () => this.state.learnedFlags.length >= 5,
       },
       {
+        id: 'getting_warm',
+        title: 'Getting Warm',
+        desc: 'Master at least 10 country flags.',
+        icon: '🌱',
+        check: () => masteredAtLeast(10),
+      },
+      {
         id: 'globetrotter',
         title: 'Globetrotter',
         desc: 'Master at least 25 country flags.',
         icon: '🥈',
-        check: () => this.state.learnedFlags.length >= 25,
+        check: () => masteredAtLeast(25),
+      },
+      {
+        id: 'fifty_flags',
+        title: 'Fifty Flags',
+        desc: 'Master at least 50 country flags.',
+        icon: '🏁',
+        check: () => masteredAtLeast(50),
+      },
+      {
+        id: 'century_club',
+        title: 'Century Club',
+        desc: 'Master at least 100 country flags.',
+        icon: '💯',
+        check: () => masteredAtLeast(100),
+      },
+      {
+        id: 'nearly_worldly',
+        title: 'Nearly Worldly',
+        desc: 'Master at least 150 country flags.',
+        icon: '🌍',
+        check: () => masteredAtLeast(150),
       },
       {
         id: 'vexillology_master',
         title: 'Vexillology Master',
-        desc: 'Master all 102 country flags.',
+        desc: `Master all ${totalFlags} country flags.`,
         icon: '👑',
-        check: () => this.state.learnedFlags.length >= 102,
+        check: () => totalFlags > 0 && masteredCount >= totalFlags,
+      },
+      {
+        id: 'beginner_sweep',
+        title: 'Beginner Sweep',
+        desc: 'Master every Level 1 flag.',
+        icon: '⭐',
+        check: () => masteredDifficulty(1),
+      },
+      {
+        id: 'intermediate_sweep',
+        title: 'Pattern Reader',
+        desc: 'Master every Level 2 flag.',
+        icon: '🌟',
+        check: () => masteredDifficulty(2),
+      },
+      {
+        id: 'expert_sweep',
+        title: 'Expert Vexillologist',
+        desc: 'Master every Level 3 flag.',
+        icon: '🏆',
+        check: () => masteredDifficulty(3),
+      },
+      {
+        id: 'europe_starter',
+        title: 'Europe Starter',
+        desc: 'Master at least 10 European flags.',
+        icon: '🇪🇺',
+        check: () => masteredContinentCount('Europe', 10),
+      },
+      {
+        id: 'asia_starter',
+        title: 'Asia Starter',
+        desc: 'Master at least 10 Asian flags.',
+        icon: '🌏',
+        check: () => masteredContinentCount('Asia', 10),
+      },
+      {
+        id: 'americas_starter',
+        title: 'Americas Starter',
+        desc: 'Master at least 10 flags from the Americas.',
+        icon: '🌎',
+        check: () => masteredContinentCount('Americas', 10),
+      },
+      {
+        id: 'africa_starter',
+        title: 'Africa Starter',
+        desc: 'Master at least 10 African flags.',
+        icon: '🌍',
+        check: () => masteredContinentCount('Africa', 10),
+      },
+      {
+        id: 'oceania_starter',
+        title: 'Oceania Starter',
+        desc: 'Master at least 5 Oceanian flags.',
+        icon: '🌊',
+        check: () => masteredContinentCount('Oceania', 5),
+      },
+      {
+        id: 'europe_complete',
+        title: 'Europe Complete',
+        desc: 'Master every European flag.',
+        icon: '🏰',
+        check: () => masteredContinent('Europe'),
+      },
+      {
+        id: 'asia_complete',
+        title: 'Asia Complete',
+        desc: 'Master every Asian flag.',
+        icon: '🧭',
+        check: () => masteredContinent('Asia'),
+      },
+      {
+        id: 'americas_complete',
+        title: 'Americas Complete',
+        desc: 'Master every flag from the Americas.',
+        icon: '🗽',
+        check: () => masteredContinent('Americas'),
+      },
+      {
+        id: 'africa_complete',
+        title: 'Africa Complete',
+        desc: 'Master every African flag.',
+        icon: '☀️',
+        check: () => masteredContinent('Africa'),
+      },
+      {
+        id: 'oceania_complete',
+        title: 'Oceania Complete',
+        desc: 'Master every Oceanian flag.',
+        icon: '🏝️',
+        check: () => masteredContinent('Oceania'),
+      },
+      {
+        id: 'quiz_50',
+        title: 'Quiz Competitor',
+        desc: 'Score at least 50% on any practice quiz.',
+        icon: '🧠',
+        check: () => this.state.quizHighscore >= 50,
+      },
+      {
+        id: 'quiz_80',
+        title: 'Quiz Ace',
+        desc: 'Score at least 80% on any practice quiz.',
+        icon: '🎓',
+        check: () => this.state.quizHighscore >= 80,
       },
       {
         id: 'perfect_quiz',
@@ -1728,6 +1871,20 @@ class VexillaApp {
         desc: 'Score 100% on any practice quiz.',
         icon: '🎯',
         check: () => this.state.quizHighscore === 100,
+      },
+      {
+        id: 'quiz_hot_streak',
+        title: 'Hot Streak',
+        desc: 'Answer 5 quiz questions in a row correctly.',
+        icon: '🔥',
+        check: () => this.quizMaxStreak >= 5,
+      },
+      {
+        id: 'quiz_flawless_run',
+        title: 'Flawless Run',
+        desc: 'Answer 10 quiz questions in a row correctly.',
+        icon: '💎',
+        check: () => this.quizMaxStreak >= 10,
       },
       {
         id: 'speed_demon',
@@ -1744,11 +1901,39 @@ class VexillaApp {
         },
       },
       {
+        id: 'match_marathon',
+        title: 'Match Finisher',
+        desc: 'Complete any Speed Match game.',
+        icon: '🧩',
+        check: () => this.pairsLeft === 0 && document.getElementById('match-sum-time')?.textContent,
+      },
+      {
         id: 'streak_3',
         title: 'Dedicated Learner',
         desc: 'Keep a daily learning streak of 3 days or more.',
         icon: '🔥',
         check: () => this.state.streak >= 3,
+      },
+      {
+        id: 'streak_7',
+        title: 'Week Warrior',
+        desc: 'Keep a daily learning streak of 7 days or more.',
+        icon: '📅',
+        check: () => this.state.streak >= 7,
+      },
+      {
+        id: 'streak_14',
+        title: 'Two-Week Traveler',
+        desc: 'Keep a daily learning streak of 14 days or more.',
+        icon: '🧳',
+        check: () => this.state.streak >= 14,
+      },
+      {
+        id: 'streak_30',
+        title: 'Monthly Master',
+        desc: 'Keep a daily learning streak of 30 days or more.',
+        icon: '🏅',
+        check: () => this.state.streak >= 30,
       },
       {
         id: 'explorer',
@@ -1758,11 +1943,39 @@ class VexillaApp {
         check: () => this.viewedCountries.size >= 10,
       },
       {
+        id: 'atlas_scholar',
+        title: 'Atlas Scholar',
+        desc: 'Inspect 25 different flags in the Encyclopedia or World Map.',
+        icon: '📚',
+        check: () => this.viewedCountries.size >= 25,
+      },
+      {
+        id: 'atlas_cartographer',
+        title: 'Cartographer',
+        desc: 'Inspect 50 different flags in the Encyclopedia or World Map.',
+        icon: '🧭',
+        check: () => this.viewedCountries.size >= 50,
+      },
+      {
         id: 'review_master',
         title: 'Detail Oriented',
         desc: 'Flag at least 5 flags for review.',
         icon: '🔍',
-        check: () => this.state.needReviewFlags.length >= 5,
+        check: () => reviewedCount >= 5,
+      },
+      {
+        id: 'review_stack',
+        title: 'Review Stack',
+        desc: 'Flag at least 15 flags for review.',
+        icon: '📝',
+        check: () => reviewedCount >= 15,
+      },
+      {
+        id: 'clean_slate',
+        title: 'Clean Slate',
+        desc: 'Have at least 25 mastered flags and nothing marked for review.',
+        icon: '✅',
+        check: () => masteredCount >= 25 && reviewedCount === 0,
       },
     ];
   }
