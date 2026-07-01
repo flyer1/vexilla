@@ -23,6 +23,8 @@ class VexillaApp {
     this.quizScore = 0;
     this.quizStreak = 0;
     this.quizMaxStreak = 0;
+    this.quizAnswerPool = [];
+    this.activeQuizContinents = ['all'];
 
     // Match game state variables
     this.matchCards = [];
@@ -608,16 +610,48 @@ class VexillaApp {
   }
 
   // --- QUIZ ENGINE ---
-  startQuiz(customLevel = null, customContinent = null) {
-    // If not supplied, quiz defaults to active level
-    const quizLevel = customLevel || this.activeLevel;
+  updateQuizContinentControls() {
+    document.querySelectorAll('.quiz-continent-tag').forEach((tag) => {
+      const value = tag.getAttribute('data-continent');
+      tag.classList.toggle('active', this.activeQuizContinents.includes(value));
+    });
+  }
+
+  selectQuizContinent(element, event) {
+    const value = element.getAttribute('data-continent');
+    const isMultiSelect = event && (event.ctrlKey || event.metaKey);
+
+    if (value === 'all') {
+      this.activeQuizContinents = ['all'];
+    } else if (isMultiSelect) {
+      const currentSelection = this.activeQuizContinents.includes('all') ? [] : [...this.activeQuizContinents];
+      const existingIndex = currentSelection.indexOf(value);
+      if (existingIndex >= 0) {
+        currentSelection.splice(existingIndex, 1);
+      } else {
+        currentSelection.push(value);
+      }
+      this.activeQuizContinents = currentSelection.length > 0 ? currentSelection : ['all'];
+    } else {
+      this.activeQuizContinents = [value];
+    }
+
+    this.updateQuizContinentControls();
+    this.playAudioTone(800, 'sine', 0.02);
+    this.startQuiz();
+  }
+
+  startQuiz(customLevel = null, customContinents = null) {
+    // Custom levels are supported, but quiz mode defaults to all difficulty levels.
+    const quizLevel = customLevel;
+    const quizContinents = customContinents || this.activeQuizContinents;
 
     let filteredFlags = this.flags;
     if (quizLevel) {
       filteredFlags = filteredFlags.filter((f) => f.difficulty === quizLevel);
     }
-    if (customContinent) {
-      filteredFlags = filteredFlags.filter((f) => f.continent === customContinent);
+    if (!quizContinents.includes('all')) {
+      filteredFlags = filteredFlags.filter((f) => quizContinents.includes(f.continent));
     }
 
     if (filteredFlags.length < 4) {
@@ -628,6 +662,7 @@ class VexillaApp {
     // Pick 10 random flags (or all if filtered count is less)
     this.shuffle(filteredFlags);
     this.quizQuestions = filteredFlags.slice(0, Math.min(10, filteredFlags.length));
+    this.quizAnswerPool = [...filteredFlags];
 
     // Reset counters
     this.currentQuizIndex = 0;
@@ -638,6 +673,7 @@ class VexillaApp {
     // UI Panels toggle
     document.getElementById('quiz-game-panel').style.display = 'flex';
     document.getElementById('quiz-summary-panel').style.display = 'none';
+    this.updateQuizContinentControls();
 
     this.loadQuizQuestion();
   }
@@ -649,7 +685,8 @@ class VexillaApp {
     const options = [questionFlag.name];
 
     // Get list of all other country names
-    const distractors = this.flags.filter((f) => f.name !== questionFlag.name).map((f) => f.name);
+    const answerPool = this.quizAnswerPool.length >= 4 ? this.quizAnswerPool : this.flags;
+    const distractors = answerPool.filter((f) => f.name !== questionFlag.name).map((f) => f.name);
 
     this.shuffle(distractors);
 

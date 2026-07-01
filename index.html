@@ -54,6 +54,12 @@
               <span>World Map</span>
             </button>
           </li>
+          <li class="nav-item" id="nav-achievements">
+            <button onclick="app.switchView('achievements')">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M8.21 13.89 7 22l5-3 5 3-1.21-8.12"/><path d="M9 8l2 2 4-4"/></svg>
+              <span>Progress</span>
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -322,6 +328,19 @@
             <p class="page-subtitle">Test your knowledge. Build score multipliers for streak answers!</p>
           </div>
         </header>
+
+        <div class="quiz-filter-panel glass-panel">
+          <div class="filter-group">
+            <span class="filter-label">Continent</span>
+            <button class="filter-tag quiz-continent-tag active" data-continent="all" onclick="app.selectQuizContinent(this, event)">All</button>
+            <button class="filter-tag quiz-continent-tag" data-continent="Europe" onclick="app.selectQuizContinent(this, event)">Europe</button>
+            <button class="filter-tag quiz-continent-tag" data-continent="Asia" onclick="app.selectQuizContinent(this, event)">Asia</button>
+            <button class="filter-tag quiz-continent-tag" data-continent="Americas" onclick="app.selectQuizContinent(this, event)">Americas</button>
+            <button class="filter-tag quiz-continent-tag" data-continent="Africa" onclick="app.selectQuizContinent(this, event)">Africa</button>
+            <button class="filter-tag quiz-continent-tag" data-continent="Oceania" onclick="app.selectQuizContinent(this, event)">Oceania</button>
+          </div>
+          <p class="filter-hint">Click a continent to switch quiz pools. Hold Ctrl while clicking to combine continents.</p>
+        </div>
 
         <!-- Quiz Panel Screen -->
         <div class="quiz-container" id="quiz-game-panel">
