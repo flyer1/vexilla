@@ -251,6 +251,19 @@
           </div>
         </header>
 
+        <div class="mode-filter-panel glass-panel">
+          <div class="filter-group">
+            <span class="filter-label">Continent</span>
+            <button class="filter-tag flashcards-continent-tag active" data-continent="all" onclick="app.selectFlashcardContinent(this, event)">All</button>
+            <button class="filter-tag flashcards-continent-tag" data-continent="Europe" onclick="app.selectFlashcardContinent(this, event)">Europe</button>
+            <button class="filter-tag flashcards-continent-tag" data-continent="Asia" onclick="app.selectFlashcardContinent(this, event)">Asia</button>
+            <button class="filter-tag flashcards-continent-tag" data-continent="Americas" onclick="app.selectFlashcardContinent(this, event)">Americas</button>
+            <button class="filter-tag flashcards-continent-tag" data-continent="Africa" onclick="app.selectFlashcardContinent(this, event)">Africa</button>
+            <button class="filter-tag flashcards-continent-tag" data-continent="Oceania" onclick="app.selectFlashcardContinent(this, event)">Oceania</button>
+          </div>
+          <p class="filter-hint">Click a continent to switch study decks. Hold Ctrl while clicking to combine continents.</p>
+        </div>
+
         <div class="study-flow-container">
           <!-- Card Progress -->
           <div style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem;">
@@ -329,7 +342,7 @@
           </div>
         </header>
 
-        <div class="quiz-filter-panel glass-panel">
+        <div class="mode-filter-panel glass-panel">
           <div class="filter-group">
             <span class="filter-label">Continent</span>
             <button class="filter-tag quiz-continent-tag active" data-continent="all" onclick="app.selectQuizContinent(this, event)">All</button>
@@ -433,6 +446,19 @@
             <p class="page-subtitle">Match the flags on the left with their country names on the right as fast as possible.</p>
           </div>
         </header>
+
+        <div class="mode-filter-panel glass-panel">
+          <div class="filter-group">
+            <span class="filter-label">Continent</span>
+            <button class="filter-tag match-continent-tag active" data-continent="all" onclick="app.selectMatchContinent(this, event)">All</button>
+            <button class="filter-tag match-continent-tag" data-continent="Europe" onclick="app.selectMatchContinent(this, event)">Europe</button>
+            <button class="filter-tag match-continent-tag" data-continent="Asia" onclick="app.selectMatchContinent(this, event)">Asia</button>
+            <button class="filter-tag match-continent-tag" data-continent="Americas" onclick="app.selectMatchContinent(this, event)">Americas</button>
+            <button class="filter-tag match-continent-tag" data-continent="Africa" onclick="app.selectMatchContinent(this, event)">Africa</button>
+            <button class="filter-tag match-continent-tag" data-continent="Oceania" onclick="app.selectMatchContinent(this, event)">Oceania</button>
+          </div>
+          <p class="filter-hint">Click a continent to switch match pools. Hold Ctrl while clicking to combine continents.</p>
+        </div>
 
         <div class="game-controls-header">
           <div class="quiz-badge" style="border-color: rgba(0, 242, 254, 0.2);">

@@ -25,6 +25,8 @@ class VexillaApp {
     this.quizMaxStreak = 0;
     this.quizAnswerPool = [];
     this.activeQuizContinents = ['all'];
+    this.activeFlashcardContinents = ['all'];
+    this.activeMatchContinents = ['all'];
 
     // Match game state variables
     this.matchCards = [];
@@ -333,6 +335,7 @@ class VexillaApp {
     if (viewId === 'dashboard') {
       this.updateDashboardStats();
     } else if (viewId === 'flashcards') {
+      this.updateContinentControls('flashcards');
       if (this.currentDeck.length === 0) {
         this.startLevel(this.activeLevel || 1);
         return;
@@ -471,15 +474,18 @@ class VexillaApp {
   startLevel(lvl) {
     this.activeLevel = lvl;
 
-    // Filter flags for level
-    const lvlFlags = this.flags.filter((f) => f.difficulty === lvl);
+    // Filter flags for level and selected continents
+    const lvlFlags = this.filterBySelectedContinents(
+      this.flags.filter((f) => f.difficulty === lvl),
+      this.activeFlashcardContinents,
+    );
 
     // Give priority to flags NOT yet learned, or load all if everything is learned
     const unlearned = lvlFlags.filter((f) => !this.state.learnedFlags.includes(f.code));
     this.currentDeck = unlearned.length > 0 ? unlearned : lvlFlags;
 
     if (this.currentDeck.length === 0) {
-      this.spawnToast('Error', 'No flags found in this level.', '❌');
+      this.spawnToast('Deck Unavailable', 'No flags found for this level and continent selection.', '⚠️');
       return;
     }
 
@@ -494,6 +500,7 @@ class VexillaApp {
       const difficultyNames = ['Iconic Flags', 'Global Colors', 'Vexillologist'];
       studyTitle.textContent = `Study Deck: Level ${lvl} - ${difficultyNames[lvl - 1]}`;
     }
+    this.updateContinentControls('flashcards');
 
     this.switchView('flashcards');
   }
@@ -610,35 +617,76 @@ class VexillaApp {
   }
 
   // --- QUIZ ENGINE ---
-  updateQuizContinentControls() {
-    document.querySelectorAll('.quiz-continent-tag').forEach((tag) => {
+  getContinentStateKey(mode) {
+    return {
+      quiz: 'activeQuizContinents',
+      flashcards: 'activeFlashcardContinents',
+      match: 'activeMatchContinents',
+    }[mode];
+  }
+
+  updateContinentControls(mode) {
+    const stateKey = this.getContinentStateKey(mode);
+    if (!stateKey) return;
+
+    document.querySelectorAll(`.${mode}-continent-tag`).forEach((tag) => {
       const value = tag.getAttribute('data-continent');
-      tag.classList.toggle('active', this.activeQuizContinents.includes(value));
+      tag.classList.toggle('active', this[stateKey].includes(value));
     });
   }
 
-  selectQuizContinent(element, event) {
+  selectContinentForMode(mode, element, event) {
+    const stateKey = this.getContinentStateKey(mode);
+    if (!stateKey) return;
+
     const value = element.getAttribute('data-continent');
     const isMultiSelect = event && (event.ctrlKey || event.metaKey);
 
     if (value === 'all') {
-      this.activeQuizContinents = ['all'];
+      this[stateKey] = ['all'];
     } else if (isMultiSelect) {
-      const currentSelection = this.activeQuizContinents.includes('all') ? [] : [...this.activeQuizContinents];
+      const currentSelection = this[stateKey].includes('all') ? [] : [...this[stateKey]];
       const existingIndex = currentSelection.indexOf(value);
       if (existingIndex >= 0) {
         currentSelection.splice(existingIndex, 1);
       } else {
         currentSelection.push(value);
       }
-      this.activeQuizContinents = currentSelection.length > 0 ? currentSelection : ['all'];
+      this[stateKey] = currentSelection.length > 0 ? currentSelection : ['all'];
     } else {
-      this.activeQuizContinents = [value];
+      this[stateKey] = [value];
     }
 
-    this.updateQuizContinentControls();
+    this.updateContinentControls(mode);
     this.playAudioTone(800, 'sine', 0.02);
-    this.startQuiz();
+
+    if (mode === 'quiz') {
+      this.startQuiz();
+    } else if (mode === 'flashcards') {
+      this.startLevel(this.activeLevel || 1);
+    } else if (mode === 'match') {
+      this.startMatchGame();
+    }
+  }
+
+  filterBySelectedContinents(flags, continents) {
+    return continents.includes('all') ? flags : flags.filter((flag) => continents.includes(flag.continent));
+  }
+
+  selectFlashcardContinent(element, event) {
+    this.selectContinentForMode('flashcards', element, event);
+  }
+
+  selectMatchContinent(element, event) {
+    this.selectContinentForMode('match', element, event);
+  }
+
+  updateQuizContinentControls() {
+    this.updateContinentControls('quiz');
+  }
+
+  selectQuizContinent(element, event) {
+    this.selectContinentForMode('quiz', element, event);
   }
 
   startQuiz(customLevel = null, customContinents = null) {
@@ -817,9 +865,16 @@ class VexillaApp {
   startMatchGame() {
     this.initAudio();
     this.firstSelectedCard = null;
+    this.updateContinentControls('match');
 
     // Select 6 random flags
-    const pool = [...this.flags];
+    const pool = this.filterBySelectedContinents([...this.flags], this.activeMatchContinents);
+
+    if (pool.length < 6) {
+      this.spawnToast('Match Setup Failed', 'Select a larger continent pool. Need at least 6 flags.', '⚠️');
+      return;
+    }
+
     this.shuffle(pool);
     const selected = pool.slice(0, 6);
     this.pairsLeft = 6;
