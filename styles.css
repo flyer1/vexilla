@@ -31,6 +31,7 @@
   --font-title: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
   --sidebar-width: 260px;
+  --mobile-nav-height: 76px;
   --transition-speed: 0.3s;
 }
 
@@ -199,6 +200,13 @@ body {
 
 .nav-item button:hover svg {
   transform: scale(1.1);
+}
+
+.nav-item button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-footer {
@@ -2175,87 +2183,429 @@ input:checked + .slider:before {
 
 /* --- MOBILE RESPONSIVENESS --- */
 @media (max-width: 768px) {
-  body {
-    flex-direction: column;
+  html {
+    scroll-padding-bottom: calc(var(--mobile-nav-height) + 1rem);
   }
-  
+
+  body {
+    display: block;
+    min-height: 100svh;
+    padding-bottom: var(--mobile-nav-height);
+  }
+
+  .app-container {
+    display: block;
+    min-height: 100svh;
+  }
+
+  .glass-panel {
+    border-radius: 16px;
+  }
+
   .sidebar {
     width: 100%;
-    height: auto;
-    position: relative;
-    border-radius: 0 0 24px 24px;
-    padding: 1.25rem 1rem;
-    border-bottom: 1px solid var(--panel-border);
+    height: var(--mobile-nav-height);
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 100;
+    display: block;
+    padding: 0.45rem 0.55rem calc(0.45rem + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    border: 1px solid var(--panel-border);
+    border-bottom: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
-  
-  .logo-container {
-    margin-bottom: 1.25rem;
-    justify-content: center;
-  }
-  
-  .nav-menu {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  
-  .nav-item button {
-    padding: 0.6rem 0.85rem;
-    font-size: 0.85rem;
-    gap: 0.5rem;
-  }
-  
-  .nav-item button span {
-    display: none; /* Hide button text on extra small screens if necessary, let's keep them if flexwrap works */
-  }
-  
+
+  .logo-container,
   .sidebar-footer {
-    display: none; /* Hide theme toggle / extra stuff on mobile sidebar or move it */
+    display: none;
   }
-  
+
+  .nav-menu {
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    justify-content: stretch;
+    align-items: stretch;
+    gap: 0.2rem;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+
+  .nav-menu::-webkit-scrollbar,
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    min-width: 0;
+  }
+
+  .nav-item button {
+    height: 100%;
+    min-height: 56px;
+    padding: 0.45rem 0.35rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+    border-radius: 14px;
+    font-size: 0.58rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .nav-item button svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+
+  .nav-item button span {
+    display: none;
+  }
+
+  .nav-item button::after {
+    content: "";
+    width: 100%;
+    color: currentColor;
+    font-size: 0.58rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  #nav-dashboard button::after {
+    content: "Home";
+  }
+
+  #nav-flashcards button::after {
+    content: "Cards";
+  }
+
+  #nav-quiz button::after {
+    content: "Quiz";
+  }
+
+  #nav-match button::after {
+    content: "Match";
+  }
+
+  #nav-encyclopedia button::after {
+    content: "Atlas";
+  }
+
+  #nav-map button::after {
+    content: "Map";
+  }
+
+  #nav-achievements button::after {
+    content: "Progress";
+  }
+
+  .nav-item button:hover svg {
+    transform: none;
+  }
+
   .main-content {
     margin-left: 0;
     width: 100%;
-    padding: 1.5rem 1rem;
-  }
-  
-  .page-title {
-    font-size: 1.75rem;
-  }
-  
-  .quiz-options-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .flashcard-container {
-    height: 340px;
-  }
-  
-  .card-face {
-    padding: 1.25rem;
-  }
-  
-  .country-name {
-    font-size: 1.6rem;
+    min-height: calc(100svh - var(--mobile-nav-height));
+    padding: 1.1rem 0.85rem 1.25rem;
   }
 
-  .achievement-summary-panel {
-    grid-template-columns: 1fr;
+  .view-section.active {
+    gap: 1.15rem;
+  }
+
+  .page-header,
+  .back-nav-container {
+    margin-bottom: 0;
+  }
+
+  .back-nav-container {
+    align-items: flex-start;
     gap: 0.75rem;
   }
 
-  .achievement-summary-percent {
-    white-space: normal;
+  .back-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
   }
 
-  .map-panel {
+  .page-title {
+    font-size: 1.65rem;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+
+  .page-subtitle {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .stats-grid,
+  .levels-grid,
+  .quick-actions,
+  .achievements-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .stat-card,
+  .level-card,
+  .action-card,
+  .achievement-card {
     padding: 1rem;
   }
 
-  .map-toolbar {
-    align-items: flex-start;
+  .stat-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+  }
+
+  .stat-value {
+    font-size: 1.45rem;
+  }
+
+  .path-section-title {
+    margin-top: 0.25rem;
+    font-size: 1.25rem;
+  }
+
+  .level-card {
+    gap: 1rem;
+  }
+
+  .level-title {
+    font-size: 1.15rem;
+  }
+
+  .level-progress-text {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .action-btn-group,
+  .summary-btn-group {
     flex-direction: column;
+  }
+
+  .secondary-btn,
+  .level-btn,
+  .danger-btn,
+  .study-btn {
+    min-height: 44px;
+  }
+
+  .mode-filter-panel {
+    margin-bottom: 0.5rem;
+    padding: 0.8rem;
+    gap: 0.6rem;
+  }
+
+  .filter-group {
+    gap: 0.4rem;
+  }
+
+  .filter-label {
+    flex-basis: 100%;
+    margin-bottom: 0.1rem;
+  }
+
+  .filter-tag {
+    min-height: 34px;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .filter-hint {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  .study-flow-container {
+    gap: 1rem;
+  }
+
+  .study-progress-indicator {
+    font-size: 0.8rem;
+  }
+
+  .flashcard-container {
+    height: min(520px, calc(100svh - 300px));
+    min-height: 380px;
+  }
+
+  .card-face {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .card-back {
+    gap: 0.75rem;
+  }
+
+  .flashcard-flag-box {
+    width: 92%;
+  }
+
+  .country-name {
+    font-size: 1.45rem;
+    line-height: 1.15;
+  }
+
+  .country-meta {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+
+  .card-details-body {
+    gap: 0.5rem;
+  }
+
+  .detail-row {
+    padding: 0.55rem 0;
+  }
+
+  .card-mnemonic-box {
+    padding: 0.75rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .study-action-row {
+    flex-direction: column;
+    gap: 0.65rem;
+    width: 100%;
+  }
+
+  .quiz-container {
+    gap: 0.9rem;
+  }
+
+  .quiz-header,
+  .game-controls-header {
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .quiz-badge {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+    border-radius: 999px;
+  }
+
+  .quiz-question-card {
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+
+  .quiz-flag-box {
+    width: min(230px, 88vw);
+  }
+
+  .quiz-prompt {
+    font-size: 1.05rem;
+  }
+
+  .quiz-prompt span {
+    font-size: 1.14rem;
+  }
+
+  .quiz-options-grid {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .quiz-option {
+    min-height: 54px;
+    padding: 0.85rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    gap: 0.75rem;
+  }
+
+  .quiz-option-letter {
+    flex: 0 0 28px;
+  }
+
+  .summary-container {
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .summary-score-circle {
+    width: 128px;
+    height: 128px;
+  }
+
+  .summary-score-value {
+    font-size: 2.25rem;
+  }
+
+  .summary-stat-row {
+    flex-direction: column;
+    gap: 0.9rem;
+    text-align: center;
+  }
+
+  .game-controls-header {
+    max-width: 100%;
+  }
+
+  .match-grid-container {
+    gap: 0.65rem;
+  }
+
+  .match-card {
+    min-height: 76px;
+    padding: 0.55rem;
+    border-radius: 14px;
+    font-size: 0.82rem;
+  }
+
+  .match-card-info {
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 28px;
+    height: 28px;
+  }
+
+  .encyclopedia-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .encyclopedia-card {
+    padding: 0.55rem;
+    gap: 0.55rem;
+    border-radius: 14px;
+  }
+
+  .encyclopedia-country-name {
+    font-size: 0.82rem;
+  }
+
+  .encyclopedia-country-sub {
+    font-size: 0.68rem;
+  }
+
+  .map-panel {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .map-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .map-title {
+    font-size: 1.05rem;
   }
 
   .map-stats,
@@ -2265,6 +2615,8 @@ input:checked + .slider:before {
 
   .map-stats-button {
     justify-content: space-between;
+    min-height: 42px;
+    border-radius: 12px;
   }
 
   .map-unplaced-panel {
@@ -2272,26 +2624,233 @@ input:checked + .slider:before {
     right: auto;
     grid-template-columns: 1fr;
     width: 100%;
-    max-height: min(640px, calc(100vh - 10rem));
+    max-height: min(620px, calc(100svh - 11rem));
   }
 
   .map-unplaced-list {
-    max-height: 220px;
+    max-height: 210px;
     border-right: 0;
     border-bottom: 1px solid var(--panel-border);
   }
 
+  .map-unplaced-detail {
+    max-height: 310px;
+  }
+
+  .map-unplaced-detail-flag-box {
+    max-height: 170px;
+  }
+
   .map-controls {
     flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .map-control-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .map-zoom-value {
+    min-width: 58px;
+    text-align: left;
   }
 
   .map-scroll-container {
-    min-height: 420px;
+    min-height: min(68svh, 560px);
+    border-radius: 12px;
   }
 
   .world-map-svg {
     width: 100%;
-    height: 520px;
+    height: min(68svh, 560px);
+  }
+
+  .map-flag-popover {
+    width: min(245px, calc(100% - 16px));
+  }
+
+  .map-popover-body {
+    padding: 0.7rem;
+  }
+
+  .map-popover-body h3 {
+    font-size: 0.9rem;
+  }
+
+  .map-popover-body p {
+    font-size: 0.72rem;
+  }
+
+  .achievement-summary-panel {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .achievement-summary-percent {
+    white-space: normal;
+  }
+
+  .achievement-card {
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .achievement-icon-box {
+    width: 46px;
+    height: 46px;
+    font-size: 1.45rem;
+    flex: 0 0 auto;
+  }
+
+  .achievement-status {
+    position: static;
+    align-self: flex-start;
+    margin-left: auto;
+  }
+
+  .achievement-title {
+    font-size: 1rem;
+  }
+
+  .settings-panel {
+    max-width: 100%;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .settings-action,
+  .settings-action button,
+  .settings-action-group {
+    width: 100%;
+    max-width: none;
+  }
+
+  .settings-action-group {
+    justify-content: stretch;
+  }
+
+  .compact-btn {
+    flex: 1 1 120px;
+    white-space: normal;
+  }
+
+  .modal-overlay {
+    align-items: flex-start;
+    padding: max(1rem, env(safe-area-inset-top)) 0.85rem calc(var(--mobile-nav-height) + 1rem);
+    overflow-y: auto;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 460px;
+    padding: 1.1rem;
+    gap: 1rem;
+    margin: auto 0;
+  }
+
+  .modal-close-btn {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(11, 15, 25, 0.68);
+  }
+
+  .modal-title {
+    font-size: 1.35rem;
+  }
+
+  .modal-details-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .toast-container {
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(var(--mobile-nav-height) + 0.75rem);
+  }
+
+  .toast {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .main-content {
+    padding-inline: 0.7rem;
+  }
+
+  .nav-item {
+    min-width: 0;
+  }
+
+  .nav-item button {
+    padding-inline: 0.2rem;
+    font-size: 0.52rem;
+  }
+
+  .nav-item button::after {
+    font-size: 0.52rem;
+  }
+
+  .page-title {
+    font-size: 1.45rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.86rem;
+  }
+
+  .stat-card,
+  .level-card,
+  .action-card,
+  .achievement-card {
+    padding: 0.85rem;
+  }
+
+  .flashcard-container {
+    min-height: 410px;
+    height: min(560px, calc(100svh - 260px));
+  }
+
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+  }
+
+  .match-grid-container {
+    gap: 0.5rem;
+  }
+
+  .match-card {
+    min-height: 70px;
+    font-size: 0.76rem;
+  }
+
+  .quiz-badge {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .encyclopedia-grid {
+    gap: 0.65rem;
   }
 }
 
