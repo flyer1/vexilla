@@ -32,8 +32,12 @@ class VexillaApp {
     this.matchCards = [];
     this.firstSelectedCard = null;
     this.pairsLeft = 0;
-    this.matchStartTime = 0;
-    this.matchTimerInterval = null;
+    this.matchTotalPairs = 0;
+    this.matchCleanMatches = 0;
+    this.matchMistakes = 0;
+    this.matchHelpViews = 0;
+    this.matchHelpedIds = new Set();
+    this.matchDisqualifiedIds = new Set();
 
     // Active Atlas filters
     this.activeFilters = {
@@ -44,6 +48,8 @@ class VexillaApp {
 
     // Encyclopedia tracking
     this.viewedCountries = new Set();
+    this.modalKeyboardReady = false;
+    this.lastModalTrigger = null;
 
     // World map state
     this.mapRendered = false;
@@ -73,6 +79,8 @@ class VexillaApp {
 
     // Calculate Streak
     this.updateStreak();
+    this.pruneRetiredAchievements();
+    this.setupModalKeyboardControls();
 
     // Setup flashcard click listeners
     const card = document.getElementById('interactive-card');
@@ -448,7 +456,9 @@ class VexillaApp {
     if (streakSpan) streakSpan.textContent = `${this.state.streak} day${this.state.streak === 1 ? '' : 's'}`;
 
     const achievementSpan = document.getElementById('stats-achievements');
-    if (achievementSpan) achievementSpan.textContent = `${this.state.unlockedAchievements.length} / ${this.getAchievementsDefinition().length}`;
+    const achievements = this.getAchievementsDefinition();
+    const activeUnlockedCount = this.getActiveUnlockedAchievementIds(achievements).length;
+    if (achievementSpan) achievementSpan.textContent = `${activeUnlockedCount} / ${achievements.length}`;
 
     // Level Progress Bars
     const levels = [1, 2, 3];
@@ -877,7 +887,13 @@ class VexillaApp {
 
     this.shuffle(pool);
     const selected = pool.slice(0, 6);
-    this.pairsLeft = 6;
+    this.matchTotalPairs = selected.length;
+    this.pairsLeft = selected.length;
+    this.matchCleanMatches = 0;
+    this.matchMistakes = 0;
+    this.matchHelpViews = 0;
+    this.matchHelpedIds = new Set();
+    this.matchDisqualifiedIds = new Set();
 
     // Create card structures
     this.matchCards = [];
@@ -905,8 +921,7 @@ class VexillaApp {
     const board = document.getElementById('match-board');
     board.innerHTML = '';
 
-    document.getElementById('match-timer').textContent = '00.0s';
-    document.getElementById('match-left').textContent = `6 / 6`;
+    this.updateMatchStats();
     document.getElementById('match-summary-panel').style.display = 'none';
     board.style.display = 'grid';
 
@@ -917,7 +932,17 @@ class VexillaApp {
       card.setAttribute('data-type', cardData.type);
 
       if (cardData.type === 'flag') {
-        card.innerHTML = `<img src="${cardData.content}" alt="Flag matching" class="no-select">`;
+        card.innerHTML = `
+          <button class="match-card-info" type="button" aria-label="View details for ${cardData.name}" title="View details">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="12" y1="7" x2="12.01" y2="7"/></svg>
+          </button>
+          <img src="${cardData.content}" alt="Flag matching" class="no-select">
+        `;
+        const detailsBtn = card.querySelector('.match-card-info');
+        detailsBtn.onclick = (event) => {
+          event.stopPropagation();
+          this.revealMatchFlagDetails(cardData.id);
+        };
       } else {
         card.textContent = cardData.content;
       }
@@ -925,14 +950,30 @@ class VexillaApp {
       card.onclick = () => this.handleMatchCardSelect(card);
       board.appendChild(card);
     });
+  }
 
-    // Start Timer
-    if (this.matchTimerInterval) clearInterval(this.matchTimerInterval);
-    this.matchStartTime = Date.now();
-    this.matchTimerInterval = setInterval(() => {
-      const elapsed = (Date.now() - this.matchStartTime) / 1000;
-      document.getElementById('match-timer').textContent = `${elapsed.toFixed(1)}s`;
-    }, 100);
+  updateMatchStats() {
+    const cleanScoreEl = document.getElementById('match-clean-score');
+    if (cleanScoreEl) cleanScoreEl.textContent = `${this.matchCleanMatches} / ${this.matchTotalPairs || 6}`;
+
+    const leftEl = document.getElementById('match-left');
+    if (leftEl) leftEl.textContent = `${this.pairsLeft} / ${this.matchTotalPairs || 6}`;
+
+    const helpEl = document.getElementById('match-help-count');
+    if (helpEl) helpEl.textContent = this.matchHelpViews;
+  }
+
+  revealMatchFlagDetails(flagCode) {
+    const flag = this.flags.find((item) => item.code === flagCode);
+    if (!flag) return;
+
+    if (!this.matchHelpedIds.has(flagCode)) {
+      this.matchHelpViews++;
+      this.matchHelpedIds.add(flagCode);
+    }
+    this.matchDisqualifiedIds.add(flagCode);
+    this.updateMatchStats();
+    this.openFlagModal(flag);
   }
 
   handleMatchCardSelect(cardEl) {
@@ -960,15 +1001,17 @@ class VexillaApp {
       this.firstSelectedCard.classList.add('matched');
       cardEl.classList.add('matched');
 
+      if (!this.matchDisqualifiedIds.has(firstId)) {
+        this.matchCleanMatches++;
+      }
       this.pairsLeft--;
-      document.getElementById('match-left').textContent = `${this.pairsLeft} / 6`;
+      this.updateMatchStats();
 
       this.playCorrectChime();
       this.firstSelectedCard = null;
 
       // Check win condition
       if (this.pairsLeft === 0) {
-        clearInterval(this.matchTimerInterval);
         setTimeout(() => this.showMatchGameComplete(), 500);
       }
     } else {
@@ -976,6 +1019,10 @@ class VexillaApp {
       cardEl.classList.add('selected');
       const prevCard = this.firstSelectedCard;
       this.firstSelectedCard = null;
+      this.matchMistakes++;
+      this.matchDisqualifiedIds.add(firstId);
+      this.matchDisqualifiedIds.add(secondId);
+      this.updateMatchStats();
 
       this.playAudioTone(180, 'sawtooth', 0.2); // Negative buzzer
 
@@ -993,14 +1040,15 @@ class VexillaApp {
     const summary = document.getElementById('match-summary-panel');
     summary.style.display = 'flex';
 
-    const elapsedSeconds = ((Date.now() - this.matchStartTime) / 1000).toFixed(1);
-    document.getElementById('match-sum-time').textContent = `${elapsedSeconds}s`;
+    const accuracy = this.matchTotalPairs > 0 ? Math.round((this.matchCleanMatches / this.matchTotalPairs) * 100) : 0;
+    document.getElementById('match-sum-score').textContent = `${this.matchCleanMatches} / ${this.matchTotalPairs}`;
 
     const subtitle = document.getElementById('match-sum-subtitle');
-    if (parseFloat(elapsedSeconds) < 15) {
-      subtitle.textContent = `Speed demon! You matched all pairs in ${elapsedSeconds} seconds. Amazing!`;
+    if (this.matchCleanMatches === this.matchTotalPairs) {
+      subtitle.textContent = `Perfect accuracy! You matched every pair without mistakes or details help.`;
     } else {
-      subtitle.textContent = `Congratulations! You cleared all pairs in ${elapsedSeconds} seconds.`;
+      const helpNote = this.matchHelpViews > 0 ? ` You viewed details for ${this.matchHelpViews} pair${this.matchHelpViews === 1 ? '' : 's'}.` : '';
+      subtitle.textContent = `You made ${this.matchCleanMatches} clean match${this.matchCleanMatches === 1 ? '' : 'es'} out of ${this.matchTotalPairs} (${accuracy}%).${helpNote}`;
     }
 
     this.playSuccessChime();
@@ -1128,6 +1176,7 @@ class VexillaApp {
 
   openFlagModal(flag) {
     this.playAudioTone(440, 'sine', 0.05);
+    this.lastModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const modalFlagImg = document.getElementById('modal-flag-img');
     modalFlagImg.alt = `${flag.name} flag`;
@@ -1150,6 +1199,10 @@ class VexillaApp {
 
     const modal = document.getElementById('flag-detail-modal');
     modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+
+    const closeBtn = modal.querySelector('.modal-close-btn');
+    if (closeBtn) closeBtn.focus();
 
     // Track encyclopedia clicks for achievements
     this.viewedCountries.add(flag.code);
@@ -1159,8 +1212,28 @@ class VexillaApp {
   }
 
   closeModal() {
+    const modal = document.getElementById('flag-detail-modal');
+    if (!modal || !modal.classList.contains('active')) return;
+
     this.playAudioTone(300, 'sine', 0.05);
-    document.getElementById('flag-detail-modal').classList.remove('active');
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (this.lastModalTrigger && document.contains(this.lastModalTrigger)) {
+      this.lastModalTrigger.focus();
+    }
+    this.lastModalTrigger = null;
+  }
+
+  setupModalKeyboardControls() {
+    if (this.modalKeyboardReady) return;
+    this.modalKeyboardReady = true;
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        this.closeModal();
+      }
+    });
   }
 
   // --- WORLD MAP ---
@@ -1734,6 +1807,7 @@ class VexillaApp {
     list.innerHTML = '';
 
     const achievements = this.getAchievementsDefinition();
+    this.updateAchievementSummary(achievements);
 
     achievements.forEach((ach) => {
       const isUnlocked = this.state.unlockedAchievements.includes(ach.id);
@@ -1752,6 +1826,34 @@ class VexillaApp {
       `;
       list.appendChild(card);
     });
+  }
+
+  updateAchievementSummary(achievements = this.getAchievementsDefinition()) {
+    const unlockedCount = this.getActiveUnlockedAchievementIds(achievements).length;
+    const totalCount = achievements.length;
+    const percent = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+
+    const countEl = document.getElementById('progress-achievements-count');
+    if (countEl) countEl.textContent = `${unlockedCount} / ${totalCount}`;
+
+    const percentEl = document.getElementById('progress-achievements-percent');
+    if (percentEl) percentEl.textContent = `${percent}% complete`;
+
+    const barEl = document.getElementById('progress-achievements-bar');
+    if (barEl) barEl.style.width = `${percent}%`;
+  }
+
+  getActiveUnlockedAchievementIds(achievements = this.getAchievementsDefinition()) {
+    const activeIds = new Set(achievements.map((achievement) => achievement.id));
+    return this.state.unlockedAchievements.filter((id) => activeIds.has(id));
+  }
+
+  pruneRetiredAchievements() {
+    const activeUnlocked = this.getActiveUnlockedAchievementIds();
+    if (activeUnlocked.length !== this.state.unlockedAchievements.length) {
+      this.state.unlockedAchievements = activeUnlocked;
+      this.saveState();
+    }
   }
 
   getAchievementsDefinition() {
@@ -1942,25 +2044,32 @@ class VexillaApp {
         check: () => this.quizMaxStreak >= 10,
       },
       {
-        id: 'speed_demon',
-        title: 'Speed Demon',
-        desc: 'Complete the Speed Match game in under 15 seconds.',
-        icon: '⚡',
-        check: () => {
-          const matchTimeText = document.getElementById('match-sum-time')?.textContent;
-          if (matchTimeText) {
-            const secs = parseFloat(matchTimeText.replace('s', ''));
-            return this.pairsLeft === 0 && secs < 15;
-          }
-          return false;
-        },
+        id: 'match_clean_sweep',
+        title: 'Clean Sweep',
+        desc: 'Finish Flag Match with every pair counted as a clean match.',
+        icon: '🎯',
+        check: () => this.matchTotalPairs > 0 && this.pairsLeft === 0 && this.matchCleanMatches === this.matchTotalPairs,
+      },
+      {
+        id: 'match_no_guessing',
+        title: 'No Guessing',
+        desc: 'Finish Flag Match without any mismatched attempts.',
+        icon: '✅',
+        check: () => this.matchTotalPairs > 0 && this.pairsLeft === 0 && this.matchMistakes === 0,
+      },
+      {
+        id: 'match_learning_moment',
+        title: 'Learning Moment',
+        desc: 'Use flag details during Flag Match and still finish the game.',
+        icon: '📖',
+        check: () => this.matchTotalPairs > 0 && this.pairsLeft === 0 && this.matchHelpViews > 0,
       },
       {
         id: 'match_marathon',
         title: 'Match Finisher',
-        desc: 'Complete any Speed Match game.',
+        desc: 'Complete any Flag Match game.',
         icon: '🧩',
-        check: () => this.pairsLeft === 0 && document.getElementById('match-sum-time')?.textContent,
+        check: () => this.matchTotalPairs > 0 && this.pairsLeft === 0,
       },
       {
         id: 'streak_3',
@@ -2048,7 +2157,7 @@ class VexillaApp {
         this.saveState();
 
         // Triggers popups
-        this.spawnToast(`Achievement Unlocked!`, `${def.title}: ${def.desc}`, def.icon);
+        this.spawnToast(`Achievement Unlocked!`, `${def.title}: ${def.desc}`, def.icon, 12000);
         this.playSuccessChime();
         this.renderAchievementsList();
       }
@@ -2056,7 +2165,7 @@ class VexillaApp {
   }
 
   // --- TOAST SYSTEMS ---
-  spawnToast(title, desc, icon = '🎉') {
+  spawnToast(title, desc, icon = '🎉', durationMs = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -2072,11 +2181,11 @@ class VexillaApp {
 
     container.appendChild(toast);
 
-    // Automatically trigger slide-out and remove after 4 seconds
+    // Automatically trigger slide-out and remove after the requested reading time.
     setTimeout(() => {
       toast.classList.add('fade-out');
       setTimeout(() => toast.remove(), 400);
-    }, 4000);
+    }, durationMs);
   }
 
   // --- AUXILIARY HELPERS ---

@@ -10,7 +10,7 @@ Vexilla is a browser-based flag learning app with flashcards, quizzes, matching 
 - **Progressive learning levels** that start with iconic flags and build toward harder, similar-looking, emblem-heavy designs.
 - **Flashcards** with a clean flip interaction, flag details, and "I Know It" / "Needs Review" tracking.
 - **Quiz mode** with configurable practice, scoring, streaks, and high score tracking.
-- **Speed Match** for quick visual recall by pairing flags with country names.
+- **Flag Match** for visual recall by pairing flags with country names and measuring clean matches.
 - **Flag Atlas & Encyclopedia** with search and filters for continent, color, and design features.
 - **World Map** view with flag markers placed geographically on a Mercator map, zooming, panning, hover popovers, and clickable flag details.
 - **Achievements** to reward study milestones and keep the loop satisfying.
@@ -35,11 +35,11 @@ Test recognition with multiple-choice questions. Vexilla tracks accuracy, score,
 
 <img src="images/quiz-mode.PNG" alt="Vexilla quiz mode screen" width="650">
 
-### Speed Match
+### Flag Match
 
-A faster memory challenge: match flags to country names as quickly as possible.
+Match flags to country names and see how many pairs you know cleanly. If you need help, open a flag's details and learn it before finishing the round.
 
-<img src="images/match-game.PNG" alt="Vexilla speed match game screen" width="650">
+<img src="images/match-game.PNG" alt="Vexilla flag match game screen" width="650">
 
 ### Encyclopedia
 
