@@ -1287,6 +1287,98 @@ class VexillaApp {
     };
   }
 
+  getCountryLocatorCoordinates() {
+    return {
+      ad: [1.52, 42.51],
+      af: [67.71, 33.94],
+      ag: [-61.8, 17.06],
+      am: [45.04, 40.07],
+      az: [47.58, 40.14],
+      bb: [-59.54, 13.19],
+      bj: [2.32, 9.31],
+      bh: [50.56, 26.07],
+      bt: [90.43, 27.51],
+      bw: [24.68, -22.33],
+      bs: [-77.4, 25.03],
+      bf: [-1.56, 12.24],
+      bi: [29.92, -3.37],
+      bn: [114.73, 4.54],
+      bz: [-88.5, 17.19],
+      cf: [20.94, 6.61],
+      cv: [-23.61, 15.12],
+      cg: [15.83, -0.23],
+      td: [18.73, 15.45],
+      cy: [33.43, 35.13],
+      dj: [42.59, 11.83],
+      dm: [-61.37, 15.41],
+      er: [39.78, 15.18],
+      gq: [10.27, 1.65],
+      ga: [11.61, -0.8],
+      gm: [-15.31, 13.44],
+      ge: [43.36, 42.32],
+      fm: [158.16, 6.92],
+      gd: [-61.68, 12.12],
+      gn: [-9.7, 9.95],
+      gw: [-15.18, 11.8],
+      gy: [-58.93, 4.86],
+      ht: [-72.29, 18.97],
+      ki: [-157.36, 1.87],
+      km: [43.25, -11.65],
+      kn: [-62.78, 17.36],
+      kg: [74.77, 41.2],
+      la: [102.5, 19.86],
+      lc: [-60.98, 13.91],
+      li: [9.56, 47.17],
+      lr: [-9.43, 6.43],
+      ls: [28.23, -29.61],
+      ly: [17.23, 26.34],
+      lu: [6.13, 49.61],
+      mc: [7.42, 43.74],
+      ml: [-3.99, 17.57],
+      mw: [34.3, -13.25],
+      mh: [171.38, 7.13],
+      mt: [14.38, 35.94],
+      mr: [-10.94, 21.01],
+      mv: [73.51, 4.18],
+      mu: [57.55, -20.35],
+      mm: [95.96, 21.92],
+      mz: [35.53, -18.67],
+      na: [18.49, -22.96],
+      ne: [8.08, 17.61],
+      ni: [-85.21, 12.87],
+      nr: [166.93, -0.52],
+      pw: [134.58, 7.5],
+      ps: [35.23, 31.95],
+      rw: [29.87, -1.94],
+      sc: [55.45, -4.68],
+      sg: [103.82, 1.35],
+      sl: [-11.78, 8.46],
+      sm: [12.46, 43.94],
+      sb: [159.97, -9.65],
+      so: [46.2, 5.15],
+      ss: [31.31, 6.88],
+      sd: [30.22, 12.86],
+      sr: [-56.03, 3.92],
+      st: [6.73, 0.19],
+      sv: [-88.9, 13.79],
+      sz: [31.47, -26.52],
+      tj: [71.28, 38.86],
+      tl: [125.73, -8.87],
+      tg: [0.82, 8.62],
+      to: [-175.2, -21.18],
+      tt: [-61.22, 10.69],
+      tm: [59.56, 38.97],
+      tv: [179.2, -8.52],
+      uz: [64.59, 41.38],
+      va: [12.45, 41.9],
+      vc: [-61.2, 13.25],
+      vu: [166.96, -15.38],
+      ws: [-171.75, -13.76],
+      xk: [20.9, 42.6],
+      zm: [27.85, -13.13],
+    };
+  }
+
   getMapNameAliases() {
     return {
       'United States of America': 'United States',
@@ -1406,6 +1498,7 @@ class VexillaApp {
       const flagLookup = new Map(this.flags.map((flag) => [this.normalizeCountryName(flag.name), flag]));
       const aliases = this.getMapNameAliases();
       const markerOverrides = this.getMapMarkerOverrides();
+      const locatorCoordinates = this.getCountryLocatorCoordinates();
       const getFlagForCountry = (country) => {
         const mapName = country.properties?.name || '';
         return this.getFlagByMapName(mapName, flagLookup, aliases);
@@ -1481,6 +1574,75 @@ class VexillaApp {
 
       let activeUnplacedFlagCode = '';
       let unplacedPreview = null;
+      let unplacedLocatorZoomStep = 0;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const fitLocatorViewBox = (centerX, centerY, boxWidth, boxHeight) => {
+        const viewWidth = Math.min(width, boxWidth);
+        const viewHeight = Math.min(height, boxHeight);
+        return {
+          x: clamp(centerX - viewWidth / 2, 0, width - viewWidth),
+          y: clamp(centerY - viewHeight / 2, 0, height - viewHeight),
+          width: viewWidth,
+          height: viewHeight,
+        };
+      };
+      const getBoundsViewBox = ([west, north, east, south], padding = 55) => {
+        const corners = [
+          projection([west, north]),
+          projection([east, south]),
+        ];
+        const xMin = Math.min(corners[0][0], corners[1][0]);
+        const xMax = Math.max(corners[0][0], corners[1][0]);
+        const yMin = Math.min(corners[0][1], corners[1][1]);
+        const yMax = Math.max(corners[0][1], corners[1][1]);
+        const centerX = (xMin + xMax) / 2;
+        const centerY = (yMin + yMax) / 2;
+        return fitLocatorViewBox(centerX, centerY, xMax - xMin + padding * 2, yMax - yMin + padding * 2);
+      };
+      const getLocatorViewBox = (flag, locatorX, locatorY) => {
+        const islandCodes = new Set(['ag', 'bb', 'bs', 'cv', 'dm', 'fm', 'gd', 'ht', 'ki', 'km', 'kn', 'lc', 'mh', 'mt', 'mv', 'mu', 'nr', 'pw', 'sc', 'st', 'to', 'tt', 'tv', 'vc', 'ws']);
+        if (flag.continent === 'Oceania' || islandCodes.has(flag.code)) {
+          return fitLocatorViewBox(locatorX, locatorY, 260, 146);
+        }
+
+        const continentBounds = {
+          Africa: [-20, 38, 55, -36],
+          Americas: [-170, 72, -30, -56],
+          Asia: [25, 82, 150, -12],
+          Europe: [-25, 72, 45, 34],
+        };
+
+        if (continentBounds[flag.continent]) {
+          const continentView = getBoundsViewBox(continentBounds[flag.continent]);
+          return fitLocatorViewBox(locatorX, locatorY, continentView.width * 0.42, continentView.height * 0.42);
+        }
+
+        return fitLocatorViewBox(locatorX, locatorY, 320, 180);
+      };
+      const setLocatorViewBox = (preview, centerX, centerY, viewWidth, viewHeight) => {
+        const viewBox = fitLocatorViewBox(centerX, centerY, viewWidth, viewHeight);
+        const dotRadius = Math.max(3.5, Math.min(12, viewBox.width * 0.018));
+
+        preview.locatorViewCenter = {
+          x: viewBox.x + viewBox.width / 2,
+          y: viewBox.y + viewBox.height / 2,
+        };
+        preview.locatorCurrentViewBox = viewBox;
+        preview.locatorSvg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        preview.locatorDot.setAttribute('r', dotRadius);
+        preview.locatorRing.setAttribute('r', dotRadius * 2.4);
+      };
+      const applyLocatorZoom = (preview, zoomStep = preview.locatorZoomStep || 0) => {
+        if (!preview.locatorBaseViewBox || !preview.locatorViewCenter) return;
+        preview.locatorZoomStep = clamp(zoomStep, -3, 5);
+        unplacedLocatorZoomStep = preview.locatorZoomStep;
+        const zoomFactor = Math.pow(1.45, preview.locatorZoomStep);
+        const targetWidth = preview.locatorBaseViewBox.width / zoomFactor;
+        const targetHeight = preview.locatorBaseViewBox.height / zoomFactor;
+
+        setLocatorViewBox(preview, preview.locatorViewCenter.x, preview.locatorViewCenter.y, targetWidth, targetHeight);
+        preview.locatorZoomValue.textContent = `${Math.round(zoomFactor * 100)}%`;
+      };
       const getUnplacedPreview = () => {
         if (!unplacedDetail) return null;
         if (unplacedPreview) return unplacedPreview;
@@ -1507,8 +1669,158 @@ class VexillaApp {
 
         const fact = document.createElement('p');
 
-        unplacedDetail.append(flagBox, title, meta, fact);
-        unplacedPreview = { flagImg, title, continent, capital, difficulty, fact };
+        const locator = document.createElement('div');
+        locator.className = 'map-unplaced-locator';
+
+        const locatorHeader = document.createElement('div');
+        locatorHeader.className = 'map-unplaced-locator-header';
+
+        const locatorLabel = document.createElement('span');
+        locatorLabel.className = 'map-unplaced-locator-label';
+        locatorLabel.textContent = 'Approximate location';
+
+        const locatorControls = document.createElement('div');
+        locatorControls.className = 'map-unplaced-locator-controls';
+
+        const zoomOutButton = document.createElement('button');
+        zoomOutButton.type = 'button';
+        zoomOutButton.className = 'map-unplaced-locator-btn';
+        zoomOutButton.setAttribute('aria-label', 'Zoom locator map out');
+        zoomOutButton.textContent = '-';
+
+        const zoomResetButton = document.createElement('button');
+        zoomResetButton.type = 'button';
+        zoomResetButton.className = 'map-unplaced-locator-btn';
+        zoomResetButton.setAttribute('aria-label', 'Reset locator map zoom');
+        zoomResetButton.textContent = 'Reset';
+
+        const zoomInButton = document.createElement('button');
+        zoomInButton.type = 'button';
+        zoomInButton.className = 'map-unplaced-locator-btn';
+        zoomInButton.setAttribute('aria-label', 'Zoom locator map in');
+        zoomInButton.textContent = '+';
+
+        const locatorZoomValue = document.createElement('span');
+        locatorZoomValue.className = 'map-unplaced-locator-zoom';
+        locatorZoomValue.textContent = '100%';
+
+        locatorControls.append(zoomOutButton, zoomResetButton, zoomInButton, locatorZoomValue);
+        locatorHeader.append(locatorLabel, locatorControls);
+
+        const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        locatorSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        locatorSvg.setAttribute('role', 'img');
+        locatorSvg.classList.add('map-unplaced-locator-svg');
+
+        const locatorOcean = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        locatorOcean.setAttribute('class', 'map-unplaced-locator-ocean');
+        locatorOcean.setAttribute('width', width);
+        locatorOcean.setAttribute('height', height);
+        locatorSvg.appendChild(locatorOcean);
+
+        countries.forEach((country) => {
+          const miniPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          miniPath.setAttribute('class', 'map-unplaced-locator-country');
+          miniPath.setAttribute('d', path(country));
+          locatorSvg.appendChild(miniPath);
+        });
+
+        const locatorDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        locatorDot.setAttribute('class', 'map-unplaced-locator-dot');
+        locatorDot.setAttribute('r', 15);
+        locatorSvg.appendChild(locatorDot);
+
+        const locatorRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        locatorRing.setAttribute('class', 'map-unplaced-locator-ring');
+        locatorRing.setAttribute('r', 34);
+        locatorSvg.appendChild(locatorRing);
+
+        zoomOutButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          applyLocatorZoom(unplacedPreview, (unplacedPreview?.locatorZoomStep || 0) - 1);
+        });
+        zoomResetButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          applyLocatorZoom(unplacedPreview, 0);
+        });
+        zoomInButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          applyLocatorZoom(unplacedPreview, (unplacedPreview?.locatorZoomStep || 0) + 1);
+        });
+        locatorSvg.addEventListener(
+          'wheel',
+          (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const zoomDirection = event.deltaY < 0 ? 1 : -1;
+            applyLocatorZoom(unplacedPreview, (unplacedPreview?.locatorZoomStep || 0) + zoomDirection);
+          },
+          { passive: false },
+        );
+        locatorSvg.addEventListener('pointerdown', (event) => {
+          if (event.button !== 0 || !unplacedPreview?.locatorCurrentViewBox) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const bounds = locatorSvg.getBoundingClientRect();
+          unplacedPreview.locatorDrag = {
+            pointerId: event.pointerId,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            viewBox: { ...unplacedPreview.locatorCurrentViewBox },
+            boundsWidth: bounds.width,
+            boundsHeight: bounds.height,
+          };
+          locatorSvg.setPointerCapture(event.pointerId);
+          locatorSvg.classList.add('is-panning');
+        });
+        locatorSvg.addEventListener('pointermove', (event) => {
+          const drag = unplacedPreview?.locatorDrag;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const svgDx = ((event.clientX - drag.clientX) / drag.boundsWidth) * drag.viewBox.width;
+          const svgDy = ((event.clientY - drag.clientY) / drag.boundsHeight) * drag.viewBox.height;
+          setLocatorViewBox(
+            unplacedPreview,
+            drag.viewBox.x + drag.viewBox.width / 2 - svgDx,
+            drag.viewBox.y + drag.viewBox.height / 2 - svgDy,
+            drag.viewBox.width,
+            drag.viewBox.height,
+          );
+        });
+        const endLocatorDrag = (event) => {
+          const drag = unplacedPreview?.locatorDrag;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          unplacedPreview.locatorDrag = null;
+          locatorSvg.classList.remove('is-panning');
+          if (locatorSvg.hasPointerCapture(event.pointerId)) {
+            locatorSvg.releasePointerCapture(event.pointerId);
+          }
+        };
+        locatorSvg.addEventListener('pointerup', endLocatorDrag);
+        locatorSvg.addEventListener('pointercancel', endLocatorDrag);
+
+        locator.append(locatorHeader, locatorSvg);
+        unplacedDetail.append(flagBox, title, meta, fact, locator);
+        unplacedPreview = {
+          flagImg,
+          title,
+          continent,
+          capital,
+          difficulty,
+          fact,
+          locator,
+          locatorLabel,
+          locatorSvg,
+          locatorDot,
+          locatorRing,
+          locatorZoomValue,
+          locatorBaseViewBox: null,
+          locatorViewCenter: null,
+          locatorCurrentViewBox: null,
+          locatorDrag: null,
+          locatorZoomStep: unplacedLocatorZoomStep,
+        };
         return unplacedPreview;
       };
 
@@ -1524,6 +1836,26 @@ class VexillaApp {
         preview.capital.textContent = `Capital: ${flag.capital}`;
         preview.difficulty.textContent = `Level ${flag.difficulty}`;
         preview.fact.textContent = flag.fact;
+        const locatorCoords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
+        if (locatorCoords) {
+          const [locatorX, locatorY] = projection(locatorCoords);
+          const locatorViewBox = getLocatorViewBox(flag, locatorX, locatorY);
+          preview.locator.hidden = false;
+          preview.locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
+          preview.locatorLabel.textContent = `Approximate location in ${flag.continent}`;
+          preview.locatorBaseViewBox = locatorViewBox;
+          preview.locatorViewCenter = { x: locatorX, y: locatorY };
+          preview.locatorDrag = null;
+          preview.locatorSvg.classList.remove('is-panning');
+          preview.locatorZoomStep = unplacedLocatorZoomStep;
+          preview.locatorDot.setAttribute('cx', locatorX);
+          preview.locatorDot.setAttribute('cy', locatorY);
+          preview.locatorRing.setAttribute('cx', locatorX);
+          preview.locatorRing.setAttribute('cy', locatorY);
+          applyLocatorZoom(preview, unplacedLocatorZoomStep);
+        } else {
+          preview.locator.hidden = true;
+        }
         activeUnplacedFlagCode = flag.code;
 
         this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
@@ -1534,13 +1866,7 @@ class VexillaApp {
         });
       };
 
-      const selectUnplacedFlag = (button, flag) => {
-        if (!unplacedList) return;
-        unplacedList.querySelectorAll('.map-unplaced-item').forEach((item) => {
-          const isActive = item === button;
-          item.classList.toggle('active', isActive);
-          item.setAttribute('aria-selected', String(isActive));
-        });
+      const selectUnplacedFlag = (flag) => {
         renderUnplacedDetail(flag);
       };
 
@@ -1567,8 +1893,6 @@ class VexillaApp {
           const item = document.createElement('button');
           item.className = 'map-unplaced-item';
           item.type = 'button';
-          item.setAttribute('role', 'option');
-          item.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
 
           const thumb = document.createElement('img');
           thumb.src = `https://flagcdn.com/w80/${flag.code}.png`;
@@ -1587,7 +1911,7 @@ class VexillaApp {
           copy.append(name, meta);
           item.append(thumb, copy);
 
-          const activate = () => selectUnplacedFlag(item, flag);
+          const activate = () => selectUnplacedFlag(flag);
           item.addEventListener('mouseenter', activate);
           item.addEventListener('focus', activate);
           item.addEventListener('click', activate);
@@ -1596,8 +1920,7 @@ class VexillaApp {
         });
 
         if (unplacedFlags.length > 0) {
-          const firstItem = unplacedList.querySelector('.map-unplaced-item');
-          if (firstItem) selectUnplacedFlag(firstItem, unplacedFlags[0]);
+          selectUnplacedFlag(unplacedFlags[0]);
         } else {
           const empty = document.createElement('p');
           empty.className = 'map-unplaced-empty';
@@ -1628,20 +1951,25 @@ class VexillaApp {
       };
 
       let activePopoverFlagCode = '';
+      const blankPopoverFlagSrc =
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const showPopover = (flag, clientX, clientY) => {
         if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverFact) return;
 
         if (activePopoverFlagCode !== flag.code) {
-          popoverFlag.alt = `${flag.name} flag`;
-          popoverTitle.textContent = flag.name;
-          popoverFact.textContent = flag.fact;
           activePopoverFlagCode = flag.code;
+          popover.classList.add('is-loading');
+          popoverFlag.alt = `${flag.name} flag`;
+          popoverFlag.src = blankPopoverFlagSrc;
+          popoverTitle.textContent = '';
+          popoverFact.textContent = '';
 
           this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
             if (activePopoverFlagCode !== flag.code) return;
-            if (popoverFlag.getAttribute('src') !== flagSrc) {
-              popoverFlag.src = flagSrc;
-            }
+            popoverFlag.src = flagSrc;
+            popoverTitle.textContent = flag.name;
+            popoverFact.textContent = flag.fact;
+            popover.classList.remove('is-loading');
           });
         }
 
@@ -1754,7 +2082,7 @@ class VexillaApp {
           if (event.type === 'dblclick') return false;
           return !event.ctrlKey && !event.button;
         })
-        .scaleExtent([1, 30])
+        .scaleExtent([1, 100])
         .translateExtent([
           [0, 0],
           [width, height],
