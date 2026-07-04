@@ -1400,6 +1400,7 @@ h4 {
   display: none;
   grid-template-columns: minmax(210px, 260px) minmax(280px, 360px);
   width: min(690px, calc(100vw - 3rem));
+  height: min(620px, calc(100vh - 12rem));
   max-height: min(620px, calc(100vh - 12rem));
   overflow: hidden;
   border: 1px solid rgba(0, 242, 254, 0.22);
@@ -1421,9 +1422,11 @@ h4 {
 
 .map-unplaced-browser {
   min-height: 0;
+  max-height: inherit;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--panel-border);
+  overflow: hidden;
 }
 
 .map-unplaced-search {
@@ -1469,8 +1472,10 @@ h4 {
 }
 
 .map-unplaced-list {
-  max-height: inherit;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.55rem;
 }
 
@@ -3068,6 +3073,7 @@ input:checked + .slider:before {
     right: auto;
     grid-template-columns: 1fr;
     width: 100%;
+    height: min(620px, calc(100svh - 11rem));
     max-height: min(620px, calc(100svh - 11rem));
   }
 
@@ -3077,7 +3083,7 @@ input:checked + .slider:before {
   }
 
   .map-unplaced-list {
-    max-height: 210px;
+    flex-basis: 210px;
   }
 
   .map-unplaced-detail {

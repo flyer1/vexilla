@@ -1974,6 +1974,7 @@ class VexillaApp {
         });
 
         unplacedPanel.addEventListener('click', (event) => event.stopPropagation());
+        unplacedPanel.addEventListener('wheel', (event) => event.stopPropagation(), { passive: true });
 
         document.addEventListener('click', closeUnplacedPanel);
         document.addEventListener('keydown', (event) => {
@@ -2207,7 +2208,7 @@ class VexillaApp {
 
       this.mapRendered = true;
       if (loading) loading.remove();
-      if (countEl) countEl.textContent = `${markers.length} map markers | ${this.flags.length} flags`;
+      if (countEl) countEl.textContent = 'Flag Finder';
     } catch (error) {
       console.error('Failed to render world map:', error);
       if (loading) loading.textContent = 'Unable to load the map data right now. Check your connection and refresh.';
