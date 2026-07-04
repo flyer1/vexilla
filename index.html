@@ -565,7 +565,7 @@
       <section id="map-view" class="view-section">
         <header class="page-header">
           <h1 class="page-title">World Map</h1>
-          <p class="page-subtitle">Explore country outlines on a Mercator map with flag markers placed inside each country where the map data can be matched.</p>
+          <p class="page-subtitle">Explore country outlines on a Mercator map with flag markers for every country that can be located.</p>
         </header>
 
         <div class="map-panel glass-panel">
@@ -580,7 +580,13 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="map-unplaced-panel" id="map-unplaced-panel" aria-hidden="true">
-                <div class="map-unplaced-list" id="map-unplaced-list"></div>
+                <div class="map-unplaced-browser">
+                  <label class="map-unplaced-search">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+                    <input id="map-flag-search" type="search" placeholder="Search flags, capitals, continents..." autocomplete="off">
+                  </label>
+                  <div class="map-unplaced-list" id="map-unplaced-list"></div>
+                </div>
                 <div class="map-unplaced-detail" id="map-unplaced-detail"></div>
               </div>
             </div>

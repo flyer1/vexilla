@@ -1462,6 +1462,7 @@ class VexillaApp {
     const countEl = document.getElementById('map-match-count');
     const unplacedToggle = document.getElementById('map-unplaced-toggle');
     const unplacedPanel = document.getElementById('map-unplaced-panel');
+    const flagSearch = document.getElementById('map-flag-search');
     const unplacedList = document.getElementById('map-unplaced-list');
     const unplacedDetail = document.getElementById('map-unplaced-detail');
     const mapContainer = document.getElementById('world-map-scroll');
@@ -1546,7 +1547,7 @@ class VexillaApp {
         activeHighlightedFlagCode = flagCode;
       };
 
-      const markers = countries
+      const polygonMarkers = countries
         .map((country) => {
           const flag = getFlagForCountry(country);
           if (!flag) return null;
@@ -1560,17 +1561,30 @@ class VexillaApp {
           return { country, flag, x, y, width: size * 1.45, height: size };
         })
         .filter(Boolean);
-      const placedCodes = new Set(markers.map((marker) => marker.flag.code));
-      const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
-      const unplacedFlags = this.flags
+      const placedCodes = new Set(polygonMarkers.map((marker) => marker.flag.code));
+      const coordinateMarkers = this.flags
         .filter((flag) => !placedCodes.has(flag.code))
-        .sort((a, b) => {
+        .map((flag) => {
+          const coords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
+          if (!coords) return null;
+          const [x, y] = projection(coords);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+          return { country: null, flag, x, y, width: 44, height: 30, isCoordinateMarker: true };
+        })
+        .filter(Boolean);
+      const markers = [...polygonMarkers, ...coordinateMarkers];
+      const markerByCode = new Map(markers.map((marker) => [marker.flag.code, marker]));
+      const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+      const sortFlagsForNavigator = (flags) =>
+        [...flags].sort((a, b) => {
           const continentA = continentOrder.indexOf(a.continent);
           const continentB = continentOrder.indexOf(b.continent);
           const orderA = continentA === -1 ? continentOrder.length : continentA;
           const orderB = continentB === -1 ? continentOrder.length : continentB;
           return orderA - orderB || a.name.localeCompare(b.name);
         });
+      const navigatorFlags = sortFlagsForNavigator(this.flags);
+      let focusMainMapOnFlag = () => {};
 
       let activeUnplacedFlagCode = '';
       let unplacedPreview = null;
@@ -1837,8 +1851,10 @@ class VexillaApp {
         preview.difficulty.textContent = `Level ${flag.difficulty}`;
         preview.fact.textContent = flag.fact;
         const locatorCoords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
-        if (locatorCoords) {
-          const [locatorX, locatorY] = projection(locatorCoords);
+        const markerLocation = markerByCode.get(flag.code);
+        const locatorPoint = locatorCoords ? projection(locatorCoords) : markerLocation ? [markerLocation.x, markerLocation.y] : null;
+        if (locatorPoint) {
+          const [locatorX, locatorY] = locatorPoint;
           const locatorViewBox = getLocatorViewBox(flag, locatorX, locatorY);
           preview.locator.hidden = false;
           preview.locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
@@ -1866,8 +1882,11 @@ class VexillaApp {
         });
       };
 
-      const selectUnplacedFlag = (flag) => {
+      const getNavigatorSearchText = (flag) => `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')}`.toLowerCase();
+
+      const selectUnplacedFlag = (flag, shouldFocusMap = false) => {
         renderUnplacedDetail(flag);
+        if (shouldFocusMap) focusMainMapOnFlag(flag);
       };
 
       if (unplacedToggle && unplacedPanel && unplacedList && unplacedDetail) {
@@ -1877,63 +1896,81 @@ class VexillaApp {
           unplacedToggle.setAttribute('aria-expanded', 'false');
         };
 
-        unplacedList.textContent = '';
         unplacedDetail.textContent = '';
 
-        let activeContinent = '';
-        unplacedFlags.forEach((flag, index) => {
-          if (flag.continent !== activeContinent) {
-            activeContinent = flag.continent;
-            const continentHeader = document.createElement('div');
-            continentHeader.className = 'map-unplaced-continent-header';
-            continentHeader.textContent = activeContinent;
-            unplacedList.appendChild(continentHeader);
+        const renderNavigatorList = (query = '') => {
+          const normalizedQuery = query.trim().toLowerCase();
+          const visibleFlags = normalizedQuery ? navigatorFlags.filter((flag) => getNavigatorSearchText(flag).includes(normalizedQuery)) : navigatorFlags;
+
+          unplacedList.textContent = '';
+          if (!visibleFlags.length) {
+            const empty = document.createElement('p');
+            empty.className = 'map-unplaced-empty';
+            empty.textContent = 'No flags match that search.';
+            unplacedList.appendChild(empty);
+            return;
           }
 
-          const item = document.createElement('button');
-          item.className = 'map-unplaced-item';
-          item.type = 'button';
+          let activeContinent = '';
+          visibleFlags.forEach((flag) => {
+            if (flag.continent !== activeContinent) {
+              activeContinent = flag.continent;
+              const continentHeader = document.createElement('div');
+              continentHeader.className = 'map-unplaced-continent-header';
+              continentHeader.textContent = activeContinent;
+              unplacedList.appendChild(continentHeader);
+            }
 
-          const thumb = document.createElement('img');
-          thumb.src = `https://flagcdn.com/w80/${flag.code}.png`;
-          thumb.alt = '';
-          thumb.loading = 'lazy';
+            const item = document.createElement('button');
+            item.className = 'map-unplaced-item';
+            item.type = 'button';
+            if (!markerByCode.has(flag.code)) {
+              item.classList.add('is-unlocated');
+              item.title = 'This flag does not have a map location yet.';
+            }
 
-          const copy = document.createElement('span');
-          copy.className = 'map-unplaced-item-copy';
+            const thumb = document.createElement('img');
+            thumb.src = `https://flagcdn.com/w80/${flag.code}.png`;
+            thumb.alt = '';
+            thumb.loading = 'lazy';
 
-          const name = document.createElement('strong');
-          name.textContent = flag.name;
+            const copy = document.createElement('span');
+            copy.className = 'map-unplaced-item-copy';
 
-          const meta = document.createElement('span');
-          meta.textContent = flag.continent;
+            const name = document.createElement('strong');
+            name.textContent = flag.name;
 
-          copy.append(name, meta);
-          item.append(thumb, copy);
+            const meta = document.createElement('span');
+            meta.textContent = markerByCode.has(flag.code) ? `${flag.continent} • Click to locate` : `${flag.continent} • Location needed`;
 
-          const activate = () => selectUnplacedFlag(flag);
-          item.addEventListener('mouseenter', activate);
-          item.addEventListener('focus', activate);
-          item.addEventListener('click', activate);
+            copy.append(name, meta);
+            item.append(thumb, copy);
 
-          unplacedList.appendChild(item);
-        });
+            item.addEventListener('mouseenter', () => selectUnplacedFlag(flag));
+            item.addEventListener('focus', () => selectUnplacedFlag(flag));
+            item.addEventListener('click', () => selectUnplacedFlag(flag, true));
 
-        if (unplacedFlags.length > 0) {
-          selectUnplacedFlag(unplacedFlags[0]);
-        } else {
-          const empty = document.createElement('p');
-          empty.className = 'map-unplaced-empty';
-          empty.textContent = 'Every flag in the dataset has a map marker.';
-          unplacedDetail.appendChild(empty);
+            unplacedList.appendChild(item);
+          });
+        };
+
+        if (flagSearch) {
+          flagSearch.value = '';
+          flagSearch.addEventListener('input', () => renderNavigatorList(flagSearch.value));
         }
+
+        renderNavigatorList();
+        if (navigatorFlags.length > 0) selectUnplacedFlag(navigatorFlags[0]);
 
         unplacedToggle.addEventListener('click', (event) => {
           event.stopPropagation();
           const isOpen = unplacedPanel.classList.toggle('active');
           unplacedPanel.setAttribute('aria-hidden', String(!isOpen));
           unplacedToggle.setAttribute('aria-expanded', String(isOpen));
-          if (isOpen) unplacedFlags.forEach((flag) => this.preloadFlagImage(flag.code, 320));
+          if (isOpen) {
+            flagSearch?.focus();
+            navigatorFlags.forEach((flag) => this.preloadFlagImage(flag.code, 320));
+          }
         });
 
         unplacedPanel.addEventListener('click', (event) => event.stopPropagation());
@@ -2137,6 +2174,21 @@ class VexillaApp {
         return window.d3.zoomIdentity.translate(width / 2 - focusX * defaultScale, height / 2 - focusY * defaultScale).scale(defaultScale);
       };
       const defaultMapTransform = getDefaultMapTransform();
+      focusMainMapOnFlag = (flag) => {
+        const marker = markerByCode.get(flag.code);
+        if (!marker) {
+          this.spawnToast('Location Needed', `${flag.name} does not have a map location yet.`, '!');
+          return;
+        }
+
+        hidePopover();
+        clearCountryHighlight();
+        const currentTransform = window.d3.zoomTransform(svg);
+        const isMobileMap = window.matchMedia('(max-width: 768px)').matches;
+        const focusScale = Math.max(currentTransform.k, isMobileMap ? 12 : 9);
+        const targetTransform = window.d3.zoomIdentity.translate(width / 2 - marker.x * focusScale, height / 2 - marker.y * focusScale).scale(focusScale);
+        d3svg.transition().duration(650).ease(window.d3.easeCubicOut).call(zoom.transform, targetTransform);
+      };
 
       const zoomInBtn = document.getElementById('map-zoom-in');
       const zoomOutBtn = document.getElementById('map-zoom-out');
@@ -2155,7 +2207,7 @@ class VexillaApp {
 
       this.mapRendered = true;
       if (loading) loading.remove();
-      if (countEl) countEl.textContent = `${markers.length} placed | ${unplacedFlags.length} unplaced`;
+      if (countEl) countEl.textContent = `${markers.length} map markers | ${this.flags.length} flags`;
     } catch (error) {
       console.error('Failed to render world map:', error);
       if (loading) loading.textContent = 'Unable to load the map data right now. Check your connection and refresh.';
