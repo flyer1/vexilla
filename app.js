@@ -2177,15 +2177,24 @@ class VexillaApp {
         <span class="toast-title">${title}</span>
         <span class="toast-desc">${desc}</span>
       </div>
+      <button class="toast-dismiss" type="button" aria-label="Dismiss notification">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     `;
 
     container.appendChild(toast);
 
-    // Automatically trigger slide-out and remove after the requested reading time.
-    setTimeout(() => {
+    const dismissToast = () => {
+      if (!toast.isConnected || toast.classList.contains('fade-out')) return;
       toast.classList.add('fade-out');
       setTimeout(() => toast.remove(), 400);
-    }, durationMs);
+    };
+
+    const dismissBtn = toast.querySelector('.toast-dismiss');
+    if (dismissBtn) dismissBtn.addEventListener('click', dismissToast);
+
+    // Automatically trigger slide-out and remove after the requested reading time.
+    setTimeout(dismissToast, durationMs);
   }
 
   // --- AUXILIARY HELPERS ---
