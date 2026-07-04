@@ -1061,11 +1061,29 @@ class VexillaApp {
     if (!grid) return;
     grid.innerHTML = '';
 
-    this.flags.forEach((flag) => {
+    const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+    const sortedFlags = [...this.flags].sort((a, b) => {
+      const continentDiff = continentOrder.indexOf(a.continent) - continentOrder.indexOf(b.continent);
+      if (continentDiff !== 0) return continentDiff;
+      return a.name.localeCompare(b.name);
+    });
+
+    let activeContinent = '';
+    sortedFlags.forEach((flag) => {
+      if (flag.continent !== activeContinent) {
+        activeContinent = flag.continent;
+        const header = document.createElement('div');
+        header.className = 'encyclopedia-continent-header';
+        header.setAttribute('data-continent', activeContinent);
+        header.textContent = activeContinent;
+        grid.appendChild(header);
+      }
+
       const card = document.createElement('div');
       card.className = 'encyclopedia-card glass-panel';
       card.setAttribute('data-country', flag.name);
       card.setAttribute('data-code', flag.code);
+      card.setAttribute('data-continent', flag.continent);
       card.onclick = () => this.openFlagModal(flag);
 
       card.innerHTML = `
@@ -1084,6 +1102,8 @@ class VexillaApp {
   filterAtlas() {
     const searchVal = document.getElementById('atlas-search-input').value.toLowerCase();
     const cards = document.querySelectorAll('.encyclopedia-card');
+    const headers = document.querySelectorAll('.encyclopedia-continent-header');
+    const visibleContinents = new Set();
     let resultsCount = 0;
 
     cards.forEach((card) => {
@@ -1110,10 +1130,16 @@ class VexillaApp {
 
       if (matchesSearch && matchesContinent && matchesColor && matchesFeature) {
         card.style.display = 'flex';
+        visibleContinents.add(flagObj.continent);
         resultsCount++;
       } else {
         card.style.display = 'none';
       }
+    });
+
+    headers.forEach((header) => {
+      const continent = header.getAttribute('data-continent');
+      header.style.display = visibleContinents.has(continent) ? 'flex' : 'none';
     });
 
     // Show no results banner if count is 0
@@ -1775,7 +1801,14 @@ class VexillaApp {
           hidePopover();
           clearCountryHighlight();
         });
-      renderZoomedMarkers(window.d3.zoomIdentity);
+      const getDefaultMapTransform = () => {
+        const isMobileMap = window.matchMedia('(max-width: 768px)').matches;
+        const defaultScale = isMobileMap ? 4.2 : 3;
+        const focusLngLat = isMobileMap ? [-87, 16] : [12, 24];
+        const [focusX, focusY] = projection(focusLngLat);
+        return window.d3.zoomIdentity.translate(width / 2 - focusX * defaultScale, height / 2 - focusY * defaultScale).scale(defaultScale);
+      };
+      const defaultMapTransform = getDefaultMapTransform();
 
       const zoomInBtn = document.getElementById('map-zoom-in');
       const zoomOutBtn = document.getElementById('map-zoom-out');
@@ -1788,7 +1821,9 @@ class VexillaApp {
             .duration(180)
             .call(zoom.scaleBy, 1 / 1.6),
         );
-      if (resetBtn) resetBtn.addEventListener('click', () => d3svg.transition().duration(220).call(zoom.transform, window.d3.zoomIdentity));
+      if (resetBtn) resetBtn.addEventListener('click', () => d3svg.transition().duration(220).call(zoom.transform, defaultMapTransform));
+
+      d3svg.call(zoom.transform, defaultMapTransform);
 
       this.mapRendered = true;
       if (loading) loading.remove();
@@ -1809,7 +1844,22 @@ class VexillaApp {
     const achievements = this.getAchievementsDefinition();
     this.updateAchievementSummary(achievements);
 
+    let activeGroup = '';
     achievements.forEach((ach) => {
+      const group = this.getAchievementGroup(ach.id);
+      if (group !== activeGroup) {
+        activeGroup = group;
+        const groupAchievements = achievements.filter((item) => this.getAchievementGroup(item.id) === group);
+        const groupUnlocked = groupAchievements.filter((item) => this.state.unlockedAchievements.includes(item.id)).length;
+        const header = document.createElement('div');
+        header.className = 'achievement-group-header';
+        header.innerHTML = `
+          <span>${group}</span>
+          <strong>${groupUnlocked} / ${groupAchievements.length}</strong>
+        `;
+        list.appendChild(header);
+      }
+
       const isUnlocked = this.state.unlockedAchievements.includes(ach.id);
 
       const card = document.createElement('div');
@@ -1826,6 +1876,15 @@ class VexillaApp {
       `;
       list.appendChild(card);
     });
+  }
+
+  getAchievementGroup(id) {
+    if (id.startsWith('match_')) return 'Flag Match';
+    if (id.startsWith('quiz_') || id === 'perfect_quiz') return 'Quiz Milestones';
+    if (id.includes('sweep') || id.includes('complete') || id.includes('starter')) return 'Regional Mastery';
+    if (id.startsWith('streak_')) return 'Daily Streaks';
+    if (id === 'explorer' || id.startsWith('atlas_') || id.startsWith('review_') || id === 'clean_slate') return 'Exploration & Review';
+    return 'Learning Milestones';
   }
 
   updateAchievementSummary(achievements = this.getAchievementsDefinition()) {
