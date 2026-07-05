@@ -1469,6 +1469,7 @@ class VexillaApp {
     const popover = document.getElementById('map-flag-popover');
     const popoverFlag = document.getElementById('map-popover-flag');
     const popoverTitle = document.getElementById('map-popover-title');
+    const popoverMeta = document.getElementById('map-popover-meta');
     const popoverFact = document.getElementById('map-popover-fact');
     if (!svg || this.mapRendered) return;
 
@@ -2004,7 +2005,7 @@ class VexillaApp {
       const blankPopoverFlagSrc =
         'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const showPopover = (flag, clientX, clientY) => {
-        if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverFact) return;
+        if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverMeta || !popoverFact) return;
 
         if (activePopoverFlagCode !== flag.code) {
           activePopoverFlagCode = flag.code;
@@ -2012,12 +2013,19 @@ class VexillaApp {
           popoverFlag.alt = `${flag.name} flag`;
           popoverFlag.src = blankPopoverFlagSrc;
           popoverTitle.textContent = '';
+          popoverMeta.textContent = '';
           popoverFact.textContent = '';
 
           this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
             if (activePopoverFlagCode !== flag.code) return;
             popoverFlag.src = flagSrc;
             popoverTitle.textContent = flag.name;
+            popoverMeta.textContent = '';
+            [flag.continent, `Capital: ${flag.capital}`, `Level ${flag.difficulty}`].forEach((label) => {
+              const pill = document.createElement('span');
+              pill.textContent = label;
+              popoverMeta.appendChild(pill);
+            });
             popoverFact.textContent = flag.fact;
             popover.classList.remove('is-loading');
           });
