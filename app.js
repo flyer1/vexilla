@@ -1524,9 +1524,13 @@ class VexillaApp {
         .text((d) => d.properties?.name || 'Country');
 
       let activeHighlightedFlagCode = '';
-      const clearCountryHighlight = () => {
+      let finderHighlightedFlagCode = '';
+      const clearCountryHighlight = ({ preserveFinderHighlight = false } = {}) => {
         activeHighlightedFlagCode = '';
-        countryLayer.selectAll('.map-country').classed('is-hovered', false);
+        if (!preserveFinderHighlight) finderHighlightedFlagCode = '';
+        countryLayer
+          .selectAll('.map-country')
+          .classed('is-hovered', (d) => preserveFinderHighlight && getFlagForCountry(d)?.code === finderHighlightedFlagCode);
       };
 
       const highlightCountry = (country) => {
@@ -1545,6 +1549,14 @@ class VexillaApp {
           .filter((d) => getFlagForCountry(d)?.code === flagCode)
           .classed('is-hovered', true);
         activeHighlightedFlagCode = flagCode;
+      };
+
+      const highlightCountryFromFinder = (flagCode) => {
+        finderHighlightedFlagCode = flagCode;
+        activeHighlightedFlagCode = flagCode;
+        countryLayer
+          .selectAll('.map-country')
+          .classed('is-hovered', (d) => getFlagForCountry(d)?.code === flagCode);
       };
 
       const polygonMarkers = countries
@@ -2137,7 +2149,7 @@ class VexillaApp {
           countryLayer.attr('transform', event.transform);
           renderZoomedMarkers(event.transform);
           hidePopover();
-          clearCountryHighlight();
+          clearCountryHighlight({ preserveFinderHighlight: true });
           if (event.sourceEvent && event.sourceEvent.type === 'mousemove') {
             d3svg.node().classList.add('is-dragging');
           }
@@ -2184,6 +2196,7 @@ class VexillaApp {
 
         hidePopover();
         clearCountryHighlight();
+        highlightCountryFromFinder(flag.code);
         const currentTransform = window.d3.zoomTransform(svg);
         const isMobileMap = window.matchMedia('(max-width: 768px)').matches;
         const focusScale = Math.max(currentTransform.k, isMobileMap ? 12 : 9);
