@@ -1706,38 +1706,16 @@ h4 {
   background: rgba(255, 255, 255, 0.045);
 }
 
-.flag-locator-map-label {
-  display: block;
-  margin-bottom: 0.45rem;
-  color: var(--accent-cyan);
-  font-size: 0.66rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
 .flag-locator-map.compact {
   margin-top: 0.75rem;
   border-radius: 10px;
   padding: 0.45rem;
 }
 
-.flag-locator-map.compact .flag-locator-map-label {
-  margin-bottom: 0.35rem;
-  font-size: 0.6rem;
-}
-
 .flag-locator-map.popover {
   margin-top: 0.65rem;
   border-radius: 9px;
   padding: 0.4rem;
-}
-
-.flag-locator-map.popover .flag-locator-map-label {
-  margin-bottom: 0.3rem;
-  font-size: 0.56rem;
-  letter-spacing: 0.07em;
 }
 
 .map-unplaced-locator {
@@ -1750,16 +1728,6 @@ h4 {
   justify-content: space-between;
   gap: 0.65rem;
   margin-bottom: 0.45rem;
-}
-
-.map-unplaced-locator-label {
-  display: block;
-  margin-bottom: 0;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .map-unplaced-locator-controls {

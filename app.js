@@ -1302,11 +1302,216 @@ class VexillaApp {
       },
       us: {
         nickname: 'Stars and Stripes',
+        adopted: 'Original Stars and Stripes adopted June 14, 1777; current 50-star design adopted July 4, 1960.',
         memory: 'Fifty stars for states, thirteen stripes for the original colonies.',
       },
     };
 
     return notes[flag.code] || {};
+  }
+
+  getFlagAdoptionDate(flag) {
+    const adoptedDates = {
+      dk: '1625',
+      nl: '1660',
+      gb: '1 January 1801',
+      ar: '27 February 1812',
+      cl: '18 October 1817',
+      pe: '1825',
+      uy: '1828',
+      fr: '1830',
+      tn: '1831',
+      be: '1831',
+      py: '1842',
+      tr: '1844',
+      lr: '1847',
+      cr: '1848',
+      bo: '1851',
+      co: '1861',
+      sm: '1862',
+      jp: '1870',
+      gt: '1871',
+      to: '1875',
+      mc: '1881',
+      kr: '1883',
+      ch: '1889',
+      ph: '12 February 1898',
+      no: '1899',
+      ec: '1900',
+      au: '1 January 1901',
+      cu: '1902',
+      se: '1906',
+      do: '1908',
+      ni: '1908',
+      pt: '1911',
+      al: '1912',
+      sv: '17 May 1912',
+      ma: '1915',
+      th: '1917',
+      at: '1918',
+      ee: '1918',
+      fi: '1918',
+      de: '1918',
+      ie: '1919',
+      pl: '1919',
+      lv: '1921',
+      pa: '1925',
+      jo: '1928',
+      tw: '1928',
+      va: '1929',
+      li: '1937',
+      it: '1943',
+      lb: '1943',
+      is: '1944',
+      id: '1945',
+      vn: '1945',
+      in: '24 July 1947',
+      pk: '11 August 1947',
+      nz: '1947',
+      kp: 'July 1948',
+      il: '1948',
+      ad: '1949',
+      ws: '1949',
+      cn: '1 October 1949',
+      my: '1950',
+      mg: '1958',
+      gn: '1958',
+      cf: '1958',
+      bj: '1959',
+      bn: '1959',
+      ci: '1959',
+      ne: '1959',
+      sg: '1959',
+      td: '1959',
+      cy: '1960',
+      ga: '1960',
+      ml: '1960',
+      ng: '1960',
+      sn: '1960',
+      so: '1960',
+      tg: '27 April 1960',
+      us: '4 July 1960',
+      kw: '7 September 1961',
+      sl: '1961',
+      dz: '1962',
+      jm: '1962',
+      np: '16 December 1962',
+      tt: '1962',
+      ug: '1962',
+      ke: '1963',
+      mt: '1964',
+      tz: '1964',
+      zm: '1964',
+      ca: '15 February 1965',
+      gm: '1965',
+      mv: '25 July 1965',
+      bb: '1966',
+      bw: '1966',
+      gh: '1966',
+      gy: '1966',
+      ag: '27 February 1967',
+      bi: '1967',
+      mx: '1968',
+      mu: '1968',
+      nr: '1968',
+      sz: '1968',
+      bt: '1969',
+      fj: '1970',
+      sd: '1970',
+      ae: '1971',
+      qa: '1971',
+      bd: '1972',
+      lk: '1972',
+      lu: '1972',
+      bs: '1973',
+      gw: '1973',
+      sa: '1973',
+      gd: '1974',
+      ao: '1975',
+      cm: '20 May 1975',
+      la: '1975',
+      pg: '1975',
+      st: '1975',
+      sr: '1975',
+      dj: '1976',
+      sb: '1977',
+      gr: '1978',
+      fm: '1979',
+      gq: '1979',
+      ki: '1979',
+      lc: '1979',
+      mh: '1979',
+      ir: '1980',
+      vu: '1980',
+      zw: '18 April 1980',
+      bz: '1981',
+      es: '1981',
+      pw: '1981',
+      kn: '1983',
+      mz: '1983',
+      bf: '1984',
+      eg: '1984',
+      vc: '1985',
+      ht: '1986',
+      lt: '1988',
+      ps: '1988',
+      ro: '1989',
+      am: '1990',
+      dm: '1990',
+      hr: '1990',
+      hu: '1990',
+      md: '1990',
+      na: '1990',
+      ye: '1990',
+      az: '1991',
+      bg: '1991',
+      cg: '10 June 1991',
+      ru: '1991',
+      si: '25 June 1991',
+      uz: '18 November 1991',
+      br: '11 May 1992',
+      cv: '22 September 1992',
+      kz: '4 June 1992',
+      mn: '12 January 1992',
+      sk: '3 September 1992',
+      tj: '24 November 1992',
+      tm: '19 February 1992',
+      ua: '28 January 1992',
+      cz: '1 January 1993',
+      er: '24 May 1993',
+      kh: 'June 1993',
+      za: '27 April 1994',
+      by: '7 June 1995',
+      mk: '5 October 1995',
+      om: '25 April 1995',
+      et: '31 October 1996',
+      sc: '8 January 1996',
+      tv: '11 April 1997',
+      ba: '4 February 1998',
+      km: '23 December 2001',
+      rw: '31 December 2001',
+      bh: '14 February 2002',
+      tl: '20 May 2002',
+      ge: '14 January 2004',
+      me: '13 July 2004',
+      rs: '2004',
+      cd: '20 February 2006',
+      ls: '4 October 2006',
+      ve: '12 March 2006',
+      iq: '22 January 2008',
+      xk: '17 February 2008',
+      mm: '21 October 2010',
+      ly: '17 February 2011',
+      ss: '9 July 2011',
+      mw: '28 May 2012',
+      mr: '15 August 2017',
+      af: '15 August 2021',
+      kg: '26 December 2023',
+      sy: '8 December 2024',
+      hn: '27 January 2026',
+    };
+
+    return adoptedDates[flag.code] || '';
   }
 
   getFlagFamily(flag) {
@@ -1327,11 +1532,7 @@ class VexillaApp {
 
   getMemoryHook(flag) {
     const curated = this.getCuratedFlagLearning(flag);
-    if (curated.memory) return curated.memory;
-
-    const colors = flag.colors.map((color) => color.charAt(0).toUpperCase() + color.slice(1)).join(', ');
-    const features = flag.features.map((feature) => this.formatFeatureLabel(feature).toLowerCase()).join(', ');
-    return `Anchor it as ${flag.continent}: ${colors}${features ? ` with ${features}` : ''}.`;
+    return curated.memory;
   }
 
   getFlagLearningDetails(flag) {
@@ -1342,7 +1543,7 @@ class VexillaApp {
     };
 
     addDetail('Nickname', curated.nickname);
-    addDetail('Adopted', curated.adopted);
+    addDetail('Current design adopted', curated.adopted || this.getFlagAdoptionDate(flag));
     addDetail('Flag family', curated.family || this.getFlagFamily(flag));
     addDetail('Historical origin', curated.origin);
     addDetail('Independence connection', curated.independence);
@@ -1655,10 +1856,6 @@ class VexillaApp {
     const viewBox = getLocatorViewBox(flag, locatorX, locatorY);
     const dotRadius = Math.max(3.5, Math.min(12, viewBox.width * 0.018));
 
-    const label = document.createElement('span');
-    label.className = 'flag-locator-map-label';
-    label.textContent = `Approximate location in ${flag.continent}`;
-
     const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     locatorSvg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
     locatorSvg.setAttribute('role', 'img');
@@ -1692,7 +1889,7 @@ class VexillaApp {
     locatorRing.setAttribute('r', dotRadius * 2.4);
     locatorSvg.appendChild(locatorRing);
 
-    container.append(label, locatorSvg);
+    container.appendChild(locatorSvg);
   }
 
   async renderWorldMap() {
@@ -1770,9 +1967,7 @@ class VexillaApp {
       const clearCountryHighlight = ({ preserveFinderHighlight = false } = {}) => {
         activeHighlightedFlagCode = '';
         if (!preserveFinderHighlight) finderHighlightedFlagCode = '';
-        countryLayer
-          .selectAll('.map-country')
-          .classed('is-hovered', (d) => preserveFinderHighlight && getFlagForCountry(d)?.code === finderHighlightedFlagCode);
+        countryLayer.selectAll('.map-country').classed('is-hovered', (d) => preserveFinderHighlight && getFlagForCountry(d)?.code === finderHighlightedFlagCode);
       };
 
       const highlightCountry = (country) => {
@@ -1796,9 +1991,7 @@ class VexillaApp {
       const highlightCountryFromFinder = (flagCode) => {
         finderHighlightedFlagCode = flagCode;
         activeHighlightedFlagCode = flagCode;
-        countryLayer
-          .selectAll('.map-country')
-          .classed('is-hovered', (d) => getFlagForCountry(d)?.code === flagCode);
+        countryLayer.selectAll('.map-country').classed('is-hovered', (d) => getFlagForCountry(d)?.code === flagCode);
       };
 
       const polygonMarkers = countries
@@ -1855,10 +2048,7 @@ class VexillaApp {
         };
       };
       const getBoundsViewBox = ([west, north, east, south], padding = 55) => {
-        const corners = [
-          projection([west, north]),
-          projection([east, south]),
-        ];
+        const corners = [projection([west, north]), projection([east, south])];
         const xMin = Math.min(corners[0][0], corners[1][0]);
         const xMax = Math.max(corners[0][0], corners[1][0]);
         const yMin = Math.min(corners[0][1], corners[1][1]);
@@ -1957,10 +2147,6 @@ class VexillaApp {
         const locatorHeader = document.createElement('div');
         locatorHeader.className = 'map-unplaced-locator-header';
 
-        const locatorLabel = document.createElement('span');
-        locatorLabel.className = 'map-unplaced-locator-label';
-        locatorLabel.textContent = 'Approximate location';
-
         const locatorControls = document.createElement('div');
         locatorControls.className = 'map-unplaced-locator-controls';
 
@@ -1987,7 +2173,7 @@ class VexillaApp {
         locatorZoomValue.textContent = '100%';
 
         locatorControls.append(zoomOutButton, zoomResetButton, zoomInButton, locatorZoomValue);
-        locatorHeader.append(locatorLabel, locatorControls);
+        locatorHeader.appendChild(locatorControls);
 
         const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         locatorSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -2062,13 +2248,7 @@ class VexillaApp {
           event.stopPropagation();
           const svgDx = ((event.clientX - drag.clientX) / drag.boundsWidth) * drag.viewBox.width;
           const svgDy = ((event.clientY - drag.clientY) / drag.boundsHeight) * drag.viewBox.height;
-          setLocatorViewBox(
-            unplacedPreview,
-            drag.viewBox.x + drag.viewBox.width / 2 - svgDx,
-            drag.viewBox.y + drag.viewBox.height / 2 - svgDy,
-            drag.viewBox.width,
-            drag.viewBox.height,
-          );
+          setLocatorViewBox(unplacedPreview, drag.viewBox.x + drag.viewBox.width / 2 - svgDx, drag.viewBox.y + drag.viewBox.height / 2 - svgDy, drag.viewBox.width, drag.viewBox.height);
         });
         const endLocatorDrag = (event) => {
           const drag = unplacedPreview?.locatorDrag;
@@ -2093,7 +2273,6 @@ class VexillaApp {
           fact,
           learningDetails,
           locator,
-          locatorLabel,
           locatorSvg,
           locatorDot,
           locatorRing,
@@ -2128,7 +2307,6 @@ class VexillaApp {
           const locatorViewBox = getLocatorViewBox(flag, locatorX, locatorY);
           preview.locator.hidden = false;
           preview.locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
-          preview.locatorLabel.textContent = `Approximate location in ${flag.continent}`;
           preview.locatorBaseViewBox = locatorViewBox;
           preview.locatorViewCenter = { x: locatorX, y: locatorY };
           preview.locatorDrag = null;
@@ -2153,8 +2331,7 @@ class VexillaApp {
       };
 
       const getNavigatorSearchText = (flag) =>
-        `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')} ${this
-          .getFlagLearningDetails(flag)
+        `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')} ${this.getFlagLearningDetails(flag)
           .map((detail) => `${detail.label} ${detail.value}`)
           .join(' ')}`.toLowerCase();
 
@@ -2263,8 +2440,7 @@ class VexillaApp {
       };
 
       let activePopoverFlagCode = '';
-      const blankPopoverFlagSrc =
-        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
+      const blankPopoverFlagSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const showPopover = (flag, clientX, clientY) => {
         if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverMeta || !popoverFact || !popoverLearningDetails || !popoverLocator) return;
 
