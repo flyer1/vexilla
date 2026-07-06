@@ -1398,10 +1398,10 @@ h4 {
   right: 0;
   z-index: 8;
   display: none;
-  grid-template-columns: minmax(210px, 260px) minmax(280px, 360px);
-  width: min(690px, calc(100vw - 3rem));
-  height: min(620px, calc(100vh - 12rem));
-  max-height: min(620px, calc(100vh - 12rem));
+  grid-template-columns: minmax(220px, 280px) minmax(320px, 410px);
+  width: min(760px, calc(100vw - 3rem));
+  height: min(780px, calc(100vh - 7rem));
+  max-height: min(780px, calc(100vh - 7rem));
   overflow: hidden;
   border: 1px solid rgba(0, 242, 254, 0.22);
   border-radius: 14px;
@@ -1630,6 +1630,114 @@ h4 {
   color: var(--text-muted);
   font-size: 0.84rem;
   line-height: 1.5;
+}
+
+.flag-learning-details {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.flag-learning-item {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 0.62rem 0.7rem;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.flag-learning-label {
+  color: var(--accent-cyan);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.flag-learning-value {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.flag-learning-details.compact {
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.flag-learning-details.compact .flag-learning-item {
+  border-radius: 9px;
+  padding: 0.52rem 0.6rem;
+}
+
+.flag-learning-details.compact .flag-learning-value {
+  font-size: 0.78rem;
+}
+
+.flag-learning-details.popover {
+  gap: 0.36rem;
+  margin-top: 0.65rem;
+}
+
+.flag-learning-details.popover .flag-learning-item {
+  border-radius: 8px;
+  padding: 0.42rem 0.5rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.flag-learning-details.popover .flag-learning-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.07em;
+}
+
+.flag-learning-details.popover .flag-learning-value {
+  font-size: 0.68rem;
+  line-height: 1.32;
+}
+
+.flag-locator-map {
+  margin-top: 0.85rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 0.55rem;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.flag-locator-map-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--accent-cyan);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.flag-locator-map.compact {
+  margin-top: 0.75rem;
+  border-radius: 10px;
+  padding: 0.45rem;
+}
+
+.flag-locator-map.compact .flag-locator-map-label {
+  margin-bottom: 0.35rem;
+  font-size: 0.6rem;
+}
+
+.flag-locator-map.popover {
+  margin-top: 0.65rem;
+  border-radius: 9px;
+  padding: 0.4rem;
+}
+
+.flag-locator-map.popover .flag-locator-map-label {
+  margin-bottom: 0.3rem;
+  font-size: 0.56rem;
+  letter-spacing: 0.07em;
 }
 
 .map-unplaced-locator {
@@ -1913,7 +2021,8 @@ h4 {
 
 .map-flag-popover {
   position: absolute;
-  width: min(275px, calc(100% - 20px));
+  width: min(360px, calc(100% - 20px));
+  max-height: min(820px, calc(100% - 20px));
   z-index: 4;
   display: none;
   pointer-events: none;
@@ -2454,6 +2563,10 @@ input:checked + .slider:before {
 .modal-detail-val {
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.modal-content .flag-learning-details {
+  margin-top: -0.2rem;
 }
 
 /* Toast Notifications */
@@ -3091,8 +3204,8 @@ input:checked + .slider:before {
     right: auto;
     grid-template-columns: 1fr;
     width: 100%;
-    height: min(620px, calc(100svh - 11rem));
-    max-height: min(620px, calc(100svh - 11rem));
+    height: min(760px, calc(100svh - 9rem));
+    max-height: min(760px, calc(100svh - 9rem));
   }
 
   .map-unplaced-browser {
@@ -3101,11 +3214,11 @@ input:checked + .slider:before {
   }
 
   .map-unplaced-list {
-    flex-basis: 210px;
+    flex-basis: 190px;
   }
 
   .map-unplaced-detail {
-    max-height: 310px;
+    max-height: none;
   }
 
   .map-unplaced-detail-flag-box {
@@ -3152,7 +3265,8 @@ input:checked + .slider:before {
   }
 
   .map-flag-popover {
-    width: min(245px, calc(100% - 16px));
+    width: min(315px, calc(100% - 16px));
+    max-height: min(700px, calc(100% - 16px));
   }
 
   .map-popover-body {
@@ -3271,6 +3385,14 @@ input:checked + .slider:before {
   .modal-details-grid {
     grid-template-columns: 1fr;
     gap: 0.65rem;
+  }
+
+  .flag-learning-item {
+    padding: 0.55rem 0.62rem;
+  }
+
+  .flag-learning-value {
+    font-size: 0.78rem;
   }
 
   .toast-container {

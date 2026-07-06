@@ -55,6 +55,7 @@ class VexillaApp {
     this.mapRendered = false;
     this.mapDataUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
     this.flagImageCache = new Map();
+    this.mapLocatorContext = null;
 
     // Web Audio Context (lazy-loaded on user interaction)
     this.audioCtx = null;
@@ -1200,6 +1201,177 @@ class VexillaApp {
     this.filterAtlas();
   }
 
+  formatFeatureLabel(feature) {
+    return feature
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  getCuratedFlagLearning(flag) {
+    const notes = {
+      ca: {
+        nickname: 'The Maple Leaf',
+        adopted: 'February 15, 1965',
+        origin: 'The single maple leaf became a clear national symbol after a long flag debate.',
+        memory: 'A red maple leaf between two red bars: Canada is the maple leaf flag.',
+      },
+      jp: {
+        nickname: 'Hinomaru, meaning circle of the sun',
+        adopted: 'August 13, 1999 as the official national flag; the design is much older.',
+        origin: 'The red disc represents the sun, linking Japan to the idea of the rising sun.',
+        memory: 'A giant red sun floating in a white sky.',
+      },
+      np: {
+        construction: 'The only non-rectangular national flag.',
+        origin: 'Its stacked pennants connect to older South Asian banner traditions.',
+        memory: 'Two red mountain pennants with blue edges: Nepal breaks the rectangle rule.',
+      },
+      ch: {
+        construction: 'One of the two square sovereign-state flags, along with Vatican City.',
+        origin: 'The white cross on red is tied to Swiss military and confederation symbols.',
+        memory: 'A medical-looking white plus on red, but Switzerland came first.',
+      },
+      va: {
+        construction: 'One of the two square sovereign-state flags, along with Switzerland.',
+        origin: 'Yellow and white reflect the keys of Saint Peter used in Vatican symbolism.',
+      },
+      mz: {
+        construction: 'The only national flag with a modern firearm, an AK-47.',
+        independence: 'The book, hoe, star, and rifle connect education, agriculture, socialism, and defense after liberation.',
+      },
+      bz: {
+        construction: 'One of the most visually detailed national flags, with many colors in the coat of arms.',
+        memory: 'Blue and red frame a detailed seal with two people and a mahogany tree.',
+      },
+      gh: {
+        family: 'Pan-African / Ethiopian colors',
+        independence: 'Ghana popularized red, yellow, and green in many post-colonial African flags.',
+      },
+      et: {
+        family: 'Ethiopian colors, a major source for Pan-African flag palettes.',
+        origin: 'Ethiopia was never colonized in the same way as many African states, so its colors became a symbol of African independence.',
+      },
+      ml: {
+        family: 'Pan-African / Ethiopian colors',
+        memory: 'Mali is the vertical green-yellow-red tricolor with no emblem.',
+      },
+      jo: {
+        family: 'Pan-Arab colors',
+        origin: 'The black, white, green, and red palette connects to Arab historical dynasties and revolt symbolism.',
+      },
+      ae: {
+        family: 'Pan-Arab colors',
+        memory: 'A red hoist bar holding green, white, and black horizontal bands.',
+      },
+      ps: {
+        family: 'Pan-Arab colors',
+        memory: 'Like Jordan without the white star in the red triangle.',
+      },
+      iq: {
+        family: 'Pan-Arab colors',
+        memory: 'Red-white-black horizontal bands with green script in the center.',
+      },
+      ru: {
+        family: 'Slavic tricolor family',
+        memory: 'White-blue-red horizontal bands: Russia sets the order for many Slavic relatives.',
+      },
+      sk: {
+        family: 'Slavic tricolor family',
+        memory: 'Like Russia with a shield near the hoist.',
+      },
+      rs: {
+        family: 'Slavic tricolor family',
+        memory: 'Red-blue-white horizontal bands with a coat of arms near the hoist.',
+      },
+      ro: {
+        memory: 'Think of Romania as the French flag standing up, but yellow replaces white.',
+      },
+      td: {
+        memory: 'Very close to Romania; Chad uses a deeper blue.',
+      },
+      nl: {
+        memory: 'Red-white-blue horizontal bands; Russia uses white-blue-red instead.',
+      },
+      fr: {
+        origin: 'The French tricolor became a model for many later republican and national tricolors.',
+      },
+      gb: {
+        nickname: 'Union Jack',
+        origin: 'It layers the crosses of England, Scotland, and Ireland into one union design.',
+      },
+      us: {
+        nickname: 'Stars and Stripes',
+        memory: 'Fifty stars for states, thirteen stripes for the original colonies.',
+      },
+    };
+
+    return notes[flag.code] || {};
+  }
+
+  getFlagFamily(flag) {
+    const colors = new Set(flag.colors);
+    const hasAll = (...items) => items.every((item) => colors.has(item));
+    const nordicCodes = new Set(['dk', 'fi', 'is', 'no', 'se']);
+    const slavicCodes = new Set(['ru', 'sk', 'si', 'rs', 'hr', 'cz']);
+
+    if (nordicCodes.has(flag.code)) return 'Nordic cross family';
+    if (slavicCodes.has(flag.code)) return 'Slavic white-blue-red family';
+    if (hasAll('black', 'white', 'green', 'red')) return 'Pan-Arab color family';
+    if (flag.continent === 'Africa' && hasAll('red', 'yellow', 'green')) return 'Pan-African / Ethiopian color family';
+    if (flag.features.includes('vertical-stripes')) return 'Vertical tricolor family';
+    if (flag.features.includes('horizontal-stripes')) return 'Horizontal stripe family';
+    if (flag.features.includes('cross')) return 'Cross flag family';
+    return '';
+  }
+
+  getMemoryHook(flag) {
+    const curated = this.getCuratedFlagLearning(flag);
+    if (curated.memory) return curated.memory;
+
+    const colors = flag.colors.map((color) => color.charAt(0).toUpperCase() + color.slice(1)).join(', ');
+    const features = flag.features.map((feature) => this.formatFeatureLabel(feature).toLowerCase()).join(', ');
+    return `Anchor it as ${flag.continent}: ${colors}${features ? ` with ${features}` : ''}.`;
+  }
+
+  getFlagLearningDetails(flag) {
+    const curated = this.getCuratedFlagLearning(flag);
+    const details = [];
+    const addDetail = (label, value) => {
+      if (value) details.push({ label, value });
+    };
+
+    addDetail('Nickname', curated.nickname);
+    addDetail('Adopted', curated.adopted);
+    addDetail('Flag family', curated.family || this.getFlagFamily(flag));
+    addDetail('Historical origin', curated.origin);
+    addDetail('Independence connection', curated.independence);
+    addDetail('Construction fact', curated.construction);
+    addDetail('Memory hook', this.getMemoryHook(flag));
+
+    return details;
+  }
+
+  renderFlagLearningDetails(container, flag) {
+    if (!container) return;
+    container.textContent = '';
+    this.getFlagLearningDetails(flag).forEach((detail) => {
+      const item = document.createElement('div');
+      item.className = 'flag-learning-item';
+
+      const label = document.createElement('span');
+      label.className = 'flag-learning-label';
+      label.textContent = detail.label;
+
+      const value = document.createElement('span');
+      value.className = 'flag-learning-value';
+      value.textContent = detail.value;
+
+      item.append(label, value);
+      container.appendChild(item);
+    });
+  }
+
   openFlagModal(flag) {
     this.playAudioTone(440, 'sine', 0.05);
     this.lastModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1222,6 +1394,8 @@ class VexillaApp {
     const capitalizedColors = flag.colors.map((c) => c.charAt(0).toUpperCase() + c.slice(1));
     document.getElementById('modal-colors').textContent = capitalizedColors.join(', ');
     document.getElementById('modal-mnemonic').textContent = flag.fact;
+    this.renderFlagLearningDetails(document.getElementById('modal-learning-details'), flag);
+    this.renderCountryLocatorMap(document.getElementById('modal-locator-map'), flag);
 
     const modal = document.getElementById('flag-detail-modal');
     modal.classList.add('active');
@@ -1456,6 +1630,71 @@ class VexillaApp {
     this.getCachedFlagImageSrc(code, width);
   }
 
+  renderCountryLocatorMap(container, flag, options = {}) {
+    if (!container) return;
+    const { compact = false, popover = false } = options;
+    container.textContent = '';
+    container.className = ['flag-locator-map', compact ? 'compact' : '', popover ? 'popover' : ''].filter(Boolean).join(' ');
+
+    if (!this.mapLocatorContext) {
+      container.hidden = true;
+      return;
+    }
+    container.hidden = false;
+
+    const { countries, width, height, path, projection, markerOverrides, locatorCoordinates, getLocatorViewBox } = this.mapLocatorContext;
+    const locatorCoords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
+    const marker = this.mapLocatorContext.markerByCode?.get(flag.code);
+    const locatorPoint = locatorCoords ? projection(locatorCoords) : marker ? [marker.x, marker.y] : null;
+    if (!locatorPoint) {
+      container.hidden = true;
+      return;
+    }
+
+    const [locatorX, locatorY] = locatorPoint;
+    const viewBox = getLocatorViewBox(flag, locatorX, locatorY);
+    const dotRadius = Math.max(3.5, Math.min(12, viewBox.width * 0.018));
+
+    const label = document.createElement('span');
+    label.className = 'flag-locator-map-label';
+    label.textContent = `Approximate location in ${flag.continent}`;
+
+    const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    locatorSvg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    locatorSvg.setAttribute('role', 'img');
+    locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
+    locatorSvg.classList.add('map-unplaced-locator-svg');
+
+    const locatorOcean = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    locatorOcean.setAttribute('class', 'map-unplaced-locator-ocean');
+    locatorOcean.setAttribute('width', width);
+    locatorOcean.setAttribute('height', height);
+    locatorSvg.appendChild(locatorOcean);
+
+    countries.forEach((country) => {
+      const miniPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      miniPath.setAttribute('class', 'map-unplaced-locator-country');
+      miniPath.setAttribute('d', path(country));
+      locatorSvg.appendChild(miniPath);
+    });
+
+    const locatorDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    locatorDot.setAttribute('class', 'map-unplaced-locator-dot');
+    locatorDot.setAttribute('cx', locatorX);
+    locatorDot.setAttribute('cy', locatorY);
+    locatorDot.setAttribute('r', dotRadius);
+    locatorSvg.appendChild(locatorDot);
+
+    const locatorRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    locatorRing.setAttribute('class', 'map-unplaced-locator-ring');
+    locatorRing.setAttribute('cx', locatorX);
+    locatorRing.setAttribute('cy', locatorY);
+    locatorRing.setAttribute('r', dotRadius * 2.4);
+    locatorSvg.appendChild(locatorRing);
+
+    container.append(label, locatorSvg);
+  }
+
   async renderWorldMap() {
     const svg = document.getElementById('world-map-svg');
     const loading = document.getElementById('map-loading');
@@ -1471,6 +1710,8 @@ class VexillaApp {
     const popoverTitle = document.getElementById('map-popover-title');
     const popoverMeta = document.getElementById('map-popover-meta');
     const popoverFact = document.getElementById('map-popover-fact');
+    const popoverLearningDetails = document.getElementById('map-popover-learning-details');
+    const popoverLocator = document.getElementById('map-popover-locator');
     if (!svg || this.mapRendered) return;
 
     if (!window.d3 || !window.topojson) {
@@ -1646,6 +1887,17 @@ class VexillaApp {
 
         return fitLocatorViewBox(locatorX, locatorY, 320, 180);
       };
+      this.mapLocatorContext = {
+        countries,
+        width,
+        height,
+        path,
+        projection,
+        markerOverrides,
+        locatorCoordinates,
+        markerByCode,
+        getLocatorViewBox,
+      };
       const setLocatorViewBox = (preview, centerX, centerY, viewWidth, viewHeight) => {
         const viewBox = fitLocatorViewBox(centerX, centerY, viewWidth, viewHeight);
         const dotRadius = Math.max(3.5, Math.min(12, viewBox.width * 0.018));
@@ -1695,6 +1947,9 @@ class VexillaApp {
         meta.append(continent, capital, difficulty);
 
         const fact = document.createElement('p');
+
+        const learningDetails = document.createElement('div');
+        learningDetails.className = 'flag-learning-details compact';
 
         const locator = document.createElement('div');
         locator.className = 'map-unplaced-locator';
@@ -1828,7 +2083,7 @@ class VexillaApp {
         locatorSvg.addEventListener('pointercancel', endLocatorDrag);
 
         locator.append(locatorHeader, locatorSvg);
-        unplacedDetail.append(flagBox, title, meta, fact, locator);
+        unplacedDetail.append(flagBox, title, meta, fact, learningDetails, locator);
         unplacedPreview = {
           flagImg,
           title,
@@ -1836,6 +2091,7 @@ class VexillaApp {
           capital,
           difficulty,
           fact,
+          learningDetails,
           locator,
           locatorLabel,
           locatorSvg,
@@ -1863,6 +2119,7 @@ class VexillaApp {
         preview.capital.textContent = `Capital: ${flag.capital}`;
         preview.difficulty.textContent = `Level ${flag.difficulty}`;
         preview.fact.textContent = flag.fact;
+        this.renderFlagLearningDetails(preview.learningDetails, flag);
         const locatorCoords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
         const markerLocation = markerByCode.get(flag.code);
         const locatorPoint = locatorCoords ? projection(locatorCoords) : markerLocation ? [markerLocation.x, markerLocation.y] : null;
@@ -1895,7 +2152,11 @@ class VexillaApp {
         });
       };
 
-      const getNavigatorSearchText = (flag) => `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')}`.toLowerCase();
+      const getNavigatorSearchText = (flag) =>
+        `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')} ${this
+          .getFlagLearningDetails(flag)
+          .map((detail) => `${detail.label} ${detail.value}`)
+          .join(' ')}`.toLowerCase();
 
       const selectUnplacedFlag = (flag, shouldFocusMap = false) => {
         renderUnplacedDetail(flag);
@@ -2005,7 +2266,7 @@ class VexillaApp {
       const blankPopoverFlagSrc =
         'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const showPopover = (flag, clientX, clientY) => {
-        if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverMeta || !popoverFact) return;
+        if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverMeta || !popoverFact || !popoverLearningDetails || !popoverLocator) return;
 
         if (activePopoverFlagCode !== flag.code) {
           activePopoverFlagCode = flag.code;
@@ -2015,6 +2276,8 @@ class VexillaApp {
           popoverTitle.textContent = '';
           popoverMeta.textContent = '';
           popoverFact.textContent = '';
+          popoverLearningDetails.textContent = '';
+          popoverLocator.textContent = '';
 
           this.getCachedFlagImageSrc(flag.code, 320).then((flagSrc) => {
             if (activePopoverFlagCode !== flag.code) return;
@@ -2027,6 +2290,8 @@ class VexillaApp {
               popoverMeta.appendChild(pill);
             });
             popoverFact.textContent = flag.fact;
+            this.renderFlagLearningDetails(popoverLearningDetails, flag);
+            this.renderCountryLocatorMap(popoverLocator, flag, { compact: true, popover: true });
             popover.classList.remove('is-loading');
           });
         }
