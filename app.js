@@ -15,6 +15,9 @@ class VexillaApp {
     // Active session variables
     this.currentDeck = [];
     this.currentDeckIndex = 0;
+    this.flashcardCompletionTimeout = null;
+    this.flashcardAdvanceTimeout = null;
+    this.isAdvancingFlashcard = false;
     this.activeLevel = 1;
 
     // Quiz state variables
@@ -313,6 +316,16 @@ class VexillaApp {
 
   // --- SPA ROUTER ---
   switchView(viewId) {
+    if (this.flashcardCompletionTimeout) {
+      clearTimeout(this.flashcardCompletionTimeout);
+      this.flashcardCompletionTimeout = null;
+    }
+    if (this.flashcardAdvanceTimeout) {
+      clearTimeout(this.flashcardAdvanceTimeout);
+      this.flashcardAdvanceTimeout = null;
+      this.isAdvancingFlashcard = false;
+    }
+
     this.initAudio();
     this.playAudioTone(600, 'sine', 0.02); // Short click tap sound
 
@@ -345,7 +358,7 @@ class VexillaApp {
       this.updateDashboardStats();
     } else if (viewId === 'flashcards') {
       this.updateContinentControls('flashcards');
-      if (this.currentDeck.length === 0) {
+      if (this.currentDeck.length === 0 || this.currentDeckIndex >= this.currentDeck.length) {
         this.startLevel(this.activeLevel || 1);
         return;
       }
@@ -523,7 +536,12 @@ class VexillaApp {
       this.spawnToast('Deck Complete!', `You have completed studying all cards in this round!`, '🏆');
 
       this.checkAchievements();
-      setTimeout(() => this.switchView('dashboard'), 1500);
+      this.currentDeck = [];
+      this.currentDeckIndex = 0;
+      this.flashcardCompletionTimeout = setTimeout(() => {
+        this.flashcardCompletionTimeout = null;
+        this.switchView('dashboard');
+      }, 1500);
       return;
     }
 
@@ -580,6 +598,8 @@ class VexillaApp {
   }
 
   cardAction(actionType) {
+    if (this.isAdvancingFlashcard) return;
+
     const activeFlag = this.currentDeck[this.currentDeckIndex];
 
     if (!activeFlag) {
@@ -610,20 +630,27 @@ class VexillaApp {
 
     this.saveState();
     this.currentDeckIndex++;
+    this.isAdvancingFlashcard = true;
 
-    // Short slide transition delay
+    // Let a revealed card rotate back before replacing it, so the next answer is not exposed mid-flip.
     const cardContainer = document.getElementById('interactive-card');
     if (cardContainer) {
+      const wasFlipped = cardContainer.classList.contains('flipped');
+      cardContainer.classList.remove('flipped');
       cardContainer.style.transform = 'translateX(-20px) rotateY(0deg)';
       cardContainer.style.opacity = '0.7';
 
-      setTimeout(() => {
+      const nextCardDelay = wasFlipped ? 650 : 250;
+      this.flashcardAdvanceTimeout = setTimeout(() => {
+        this.flashcardAdvanceTimeout = null;
         cardContainer.style.transform = 'none';
         cardContainer.style.opacity = '1';
         this.loadNextFlashcard();
-      }, 250);
+        this.isAdvancingFlashcard = false;
+      }, nextCardDelay);
     } else {
       this.loadNextFlashcard();
+      this.isAdvancingFlashcard = false;
     }
   }
 
