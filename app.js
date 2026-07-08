@@ -991,6 +991,50 @@ class VexillaApp {
     if (helpEl) helpEl.textContent = this.matchHelpViews;
   }
 
+  celebrateMatchSuccess(cards, isCleanMatch) {
+    const particlePositions = [
+      ['50%', '50%', '-34px', '-26px'],
+      ['50%', '50%', '-10px', '-42px'],
+      ['50%', '50%', '26px', '-34px'],
+      ['50%', '50%', '42px', '-6px'],
+      ['50%', '50%', '30px', '30px'],
+      ['50%', '50%', '-6px', '42px'],
+      ['50%', '50%', '-38px', '18px'],
+    ];
+
+    cards.forEach((card) => {
+      card.classList.add('matched', 'match-reward');
+
+      card.querySelectorAll('.match-reward-burst').forEach((burst) => burst.remove());
+      const burst = document.createElement('div');
+      burst.className = 'match-reward-burst';
+      particlePositions.forEach(([x, y, dx, dy], index) => {
+        const spark = document.createElement('span');
+        spark.style.setProperty('--spark-x', x);
+        spark.style.setProperty('--spark-y', y);
+        spark.style.setProperty('--spark-dx', dx);
+        spark.style.setProperty('--spark-dy', dy);
+        spark.style.setProperty('--spark-delay', `${index * 24}ms`);
+        burst.appendChild(spark);
+      });
+      card.appendChild(burst);
+
+      setTimeout(() => {
+        card.classList.add('match-removing');
+      }, 450);
+    });
+
+    const badgeId = isCleanMatch ? 'match-clean-score' : 'match-left';
+    const badge = document.getElementById(badgeId)?.closest('.quiz-badge');
+    if (badge) {
+      badge.classList.remove('match-stat-pop');
+      // Restart the animation even when matches happen quickly.
+      void badge.offsetWidth;
+      badge.classList.add('match-stat-pop');
+      setTimeout(() => badge.classList.remove('match-stat-pop'), 700);
+    }
+  }
+
   revealMatchFlagDetails(flagCode) {
     const flag = this.flags.find((item) => item.code === flagCode);
     if (!flag) return;
@@ -1026,21 +1070,21 @@ class VexillaApp {
     if (firstId === secondId && firstType !== secondType) {
       // MATCH SUCCESS!
       this.firstSelectedCard.classList.remove('selected');
-      this.firstSelectedCard.classList.add('matched');
-      cardEl.classList.add('matched');
 
-      if (!this.matchDisqualifiedIds.has(firstId)) {
+      const isCleanMatch = !this.matchDisqualifiedIds.has(firstId);
+      if (isCleanMatch) {
         this.matchCleanMatches++;
       }
       this.pairsLeft--;
       this.updateMatchStats();
+      this.celebrateMatchSuccess([this.firstSelectedCard, cardEl], isCleanMatch);
 
       this.playCorrectChime();
       this.firstSelectedCard = null;
 
       // Check win condition
       if (this.pairsLeft === 0) {
-        setTimeout(() => this.showMatchGameComplete(), 500);
+        setTimeout(() => this.showMatchGameComplete(), 2000);
       }
     } else {
       // MISMATCH

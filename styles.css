@@ -1199,24 +1199,189 @@ h4 {
 }
 
 .match-card.matched {
-  animation: matchSuccess 0.4s ease-out forwards;
   pointer-events: none;
+}
+
+.match-card.match-reward {
+  border-color: var(--accent-green);
+  background:
+    radial-gradient(circle at center, rgba(16, 185, 129, 0.18), transparent 62%),
+    var(--panel-bg);
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.35),
+    0 0 24px rgba(16, 185, 129, 0.35),
+    inset 0 0 18px rgba(0, 242, 254, 0.12);
+  animation: matchRewardHold 1.15s ease-out forwards;
+}
+
+.match-card.match-removing {
+  animation: matchSuccess 0.62s ease-in forwards;
+}
+
+.match-card.match-reward::before {
+  content: '';
+  position: absolute;
+  inset: 14%;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid rgba(125, 211, 252, 0.65);
+  border-radius: 18px;
+  box-shadow:
+    0 0 18px rgba(0, 242, 254, 0.22),
+    inset 0 0 20px rgba(16, 185, 129, 0.18);
+  opacity: 0;
+  transform: scale(0.72);
+  animation: matchRewardRipple 0.9s ease-out forwards;
+}
+
+.match-reward-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.match-reward-burst span {
+  position: absolute;
+  left: var(--spark-x);
+  top: var(--spark-y);
+  width: 16px;
+  height: 16px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.18) rotate(0deg);
+  animation: matchRewardGlint 0.82s ease-out var(--spark-delay) forwards;
+}
+
+.match-reward-burst span::before,
+.match-reward-burst span::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), var(--accent-cyan), transparent);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.75);
+  transform: translate(-50%, -50%);
+}
+
+.match-reward-burst span::before {
+  width: 16px;
+  height: 2px;
+}
+
+.match-reward-burst span::after {
+  width: 2px;
+  height: 16px;
+}
+
+.match-reward-burst span:nth-child(even)::before,
+.match-reward-burst span:nth-child(even)::after {
+  background: var(--accent-green);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.72);
+}
+
+.quiz-badge.match-stat-pop {
+  animation: matchStatPop 0.7s ease-out;
 }
 
 @keyframes matchSuccess {
   0% {
-    transform: scale(1);
-    box-shadow: var(--glow-green);
+    opacity: 1;
     border-color: var(--accent-green);
+    filter: saturate(1.12);
   }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.8;
+  55% {
+    opacity: 0.7;
+    filter: saturate(1.05) blur(0.5px);
   }
   100% {
-    transform: scale(0.9);
     opacity: 0;
+    filter: saturate(1) blur(2px);
     visibility: hidden;
+  }
+}
+
+@keyframes matchRewardHold {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.22),
+      0 0 0 rgba(16, 185, 129, 0),
+      inset 0 0 0 rgba(0, 242, 254, 0);
+  }
+  34% {
+    box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.6),
+      0 0 28px rgba(16, 185, 129, 0.42),
+      inset 0 0 22px rgba(0, 242, 254, 0.18);
+  }
+  72% {
+    box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.42),
+      0 0 20px rgba(16, 185, 129, 0.26),
+      inset 0 0 14px rgba(0, 242, 254, 0.12);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.35),
+      0 0 16px rgba(16, 185, 129, 0.22),
+      inset 0 0 12px rgba(0, 242, 254, 0.1);
+  }
+}
+
+@keyframes matchRewardRipple {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  28% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes matchRewardGlint {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.18) rotate(0deg);
+  }
+  24% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(35deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--spark-dx)), calc(-50% + var(--spark-dy))) scale(0.32) rotate(95deg);
+  }
+}
+
+@keyframes matchStatPop {
+  0% {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+  35% {
+    border-color: var(--accent-green);
+    box-shadow: var(--glow-green);
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-card.match-reward::before,
+  .match-reward-burst span,
+  .quiz-badge.match-stat-pop {
+    animation-duration: 0.2s;
+  }
+
+  .match-card.match-reward,
+  .match-card.match-removing {
+    animation-duration: 0.25s;
   }
 }
 
@@ -1752,7 +1917,10 @@ h4 {
   font-size: 0.7rem;
   font-weight: 800;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .map-unplaced-locator-btn:hover,
