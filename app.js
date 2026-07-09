@@ -1147,7 +1147,10 @@ class VexillaApp {
         const header = document.createElement('div');
         header.className = 'encyclopedia-continent-header';
         header.setAttribute('data-continent', activeContinent);
-        header.textContent = activeContinent;
+        header.innerHTML = `
+          <span class="encyclopedia-continent-name">${activeContinent}</span>
+          <span class="encyclopedia-continent-count" data-count-for="${activeContinent}">0 flags</span>
+        `;
         grid.appendChild(header);
       }
 
@@ -1169,6 +1172,8 @@ class VexillaApp {
       `;
       grid.appendChild(card);
     });
+
+    this.filterAtlas();
   }
 
   filterAtlas() {
@@ -1176,6 +1181,7 @@ class VexillaApp {
     const cards = document.querySelectorAll('.encyclopedia-card');
     const headers = document.querySelectorAll('.encyclopedia-continent-header');
     const visibleContinents = new Set();
+    const continentCounts = new Map();
     let resultsCount = 0;
 
     cards.forEach((card) => {
@@ -1198,11 +1204,12 @@ class VexillaApp {
       const matchesColor = this.activeFilters.color.includes('all') || this.activeFilters.color.every((c) => flagObj.colors.includes(c));
 
       // Feature Match (AND logic: flag must contain ALL selected features)
-      const matchesFeature = this.activeFilters.feature.includes('all') || this.activeFilters.feature.every((f) => flagObj.features.includes(f));
+      const matchesFeature = this.activeFilters.feature.includes('all') || this.activeFilters.feature.every((f) => this.flagHasFeature(flagObj, f));
 
       if (matchesSearch && matchesContinent && matchesColor && matchesFeature) {
         card.style.display = 'flex';
         visibleContinents.add(flagObj.continent);
+        continentCounts.set(flagObj.continent, (continentCounts.get(flagObj.continent) || 0) + 1);
         resultsCount++;
       } else {
         card.style.display = 'none';
@@ -1211,8 +1218,16 @@ class VexillaApp {
 
     headers.forEach((header) => {
       const continent = header.getAttribute('data-continent');
+      const count = continentCounts.get(continent) || 0;
+      const countEl = header.querySelector('.encyclopedia-continent-count');
       header.style.display = visibleContinents.has(continent) ? 'flex' : 'none';
+      if (countEl) countEl.textContent = `${count} flag${count === 1 ? '' : 's'}`;
     });
+
+    const resultSummary = document.getElementById('atlas-result-summary');
+    if (resultSummary) {
+      resultSummary.textContent = `${resultsCount} of ${this.flags.length} flag${resultsCount === 1 ? '' : 's'} shown`;
+    }
 
     // Show no results banner if count is 0
     let emptyMsg = document.getElementById('atlas-empty-msg');
@@ -1277,6 +1292,14 @@ class VexillaApp {
       .split('-')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  flagHasFeature(flag, feature) {
+    if (feature === 'stars') {
+      return flag.features.includes('stars') || flag.features.includes('star');
+    }
+
+    return flag.features.includes(feature);
   }
 
   getCuratedFlagLearning(flag) {
