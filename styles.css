@@ -3979,6 +3979,10 @@ input:checked + .slider:before {
   min-height: 48px;
 }
 
+.quiz-feedback[hidden] {
+  display: none;
+}
+
 .quiz-feedback strong { color: var(--accent-yellow); }
 
 .quiz-feedback-copy {

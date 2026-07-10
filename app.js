@@ -1364,8 +1364,10 @@ class VexillaApp {
       }
     }
 
-    // Wait and progress
-    this.quizAdvanceTimeout = setTimeout(() => this.advanceQuizQuestion(), isCorrect ? 850 : 7000);
+    // Correct answers move quickly; wrong answers wait for the learner to finish reading.
+    if (isCorrect) {
+      this.quizAdvanceTimeout = setTimeout(() => this.advanceQuizQuestion(), 850);
+    }
   }
 
   advanceQuizQuestion() {
