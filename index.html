@@ -110,6 +110,16 @@
           </div>
 
           <div class="stat-card glass-panel">
+            <div class="stat-icon" style="color: var(--accent-cyan);">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"/><path d="M9 12l2 2 4-5"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="stats-level">Level 1</span>
+              <span class="stat-label">Explorer Level</span>
+            </div>
+          </div>
+
+          <div class="stat-card glass-panel">
             <div class="stat-icon" style="color: var(--accent-orange);">
               <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
@@ -129,6 +139,29 @@
             </div>
           </div>
         </div>
+
+        <section class="today-plan glass-panel" aria-labelledby="today-plan-title">
+          <div class="today-plan-copy">
+            <span class="section-kicker">Today&apos;s learning plan</span>
+            <h2 id="today-plan-title">Continue your flag journey</h2>
+            <p id="today-plan-copy">A focused session is ready when you are.</p>
+          </div>
+          <div class="today-plan-actions">
+            <span class="today-due-chip" id="today-due-count">0 due</span>
+            <button class="level-btn" id="today-plan-button" type="button">Start learning</button>
+          </div>
+        </section>
+
+        <section class="continent-path-panel" aria-labelledby="continent-path-title">
+          <div class="section-heading-row">
+            <div>
+              <span class="section-kicker">Learn your way</span>
+              <h2 id="continent-path-title" class="path-section-title">Continent paths</h2>
+            </div>
+            <span class="section-inline-hint">Choose a continent to continue there</span>
+          </div>
+          <div class="continent-progress-list" id="continent-progress-list"></div>
+        </section>
 
         <!-- Levels Selection -->
         <div>
@@ -264,6 +297,10 @@
             <button class="filter-tag flashcards-continent-tag" data-continent="Oceania" onclick="app.selectFlashcardContinent(this, event)">Oceania</button>
           </div>
           <p class="filter-hint">Click a continent to switch study decks. Hold Ctrl while clicking to combine continents.</p>
+          <div class="deck-shortcuts">
+            <button class="secondary-btn compact-btn" type="button" onclick="app.startReviewDeck('flagged')">Review queue</button>
+            <button class="secondary-btn compact-btn" type="button" onclick="app.startReviewDeck('due')">Due today</button>
+          </div>
         </div>
 
         <div class="study-flow-container">
@@ -330,6 +367,23 @@
             </button>
           </div>
         </div>
+
+        <div class="summary-container glass-panel" id="flashcard-summary-panel" style="display: none; max-width: 520px;">
+          <div class="summary-score-circle">
+            <span class="summary-score-value" id="flashcard-summary-title" style="font-size: 1.35rem;">Done</span>
+            <span class="summary-score-label">deck</span>
+          </div>
+          <div>
+            <h2 class="summary-title">Study Session Complete</h2>
+            <p class="page-subtitle" id="flashcard-summary-subtitle" style="margin-top:0.5rem;">You studied this deck.</p>
+          </div>
+          <div class="summary-btn-group">
+            <button class="secondary-btn" onclick="app.startLevel(app.activeLevel || 1)">Study Again</button>
+            <button class="secondary-btn" onclick="app.startReviewDeck('flagged')">Review Queue</button>
+            <button class="level-btn" onclick="app.switchView('dashboard')">Home</button>
+          </div>
+          <div class="session-summary-list" id="flashcard-session-summary"></div>
+        </div>
       </section>
 
       <!-- ================= QUIZ VIEW ================= -->
@@ -355,6 +409,22 @@
             <button class="filter-tag quiz-continent-tag" data-continent="Oceania" onclick="app.selectQuizContinent(this, event)">Oceania</button>
           </div>
           <p class="filter-hint">Click a continent to switch quiz pools. Hold Ctrl while clicking to combine continents.</p>
+          <div class="quiz-config-row" aria-label="Quiz setup">
+            <div class="quiz-config-group">
+              <span class="filter-label">Challenge</span>
+              <button class="filter-tag quiz-mode-tag active" data-quiz-mode="flag-country" onclick="app.selectQuizMode(this)">Flag to Country</button>
+              <button class="filter-tag quiz-mode-tag" data-quiz-mode="country-flag" onclick="app.selectQuizMode(this)">Country to Flag</button>
+              <button class="filter-tag quiz-mode-tag" data-quiz-mode="flag-capital" onclick="app.selectQuizMode(this)">Flag to Capital</button>
+              <button class="filter-tag quiz-mode-tag" data-quiz-mode="capital-flag" onclick="app.selectQuizMode(this)">Capital to Flag</button>
+            </div>
+            <div class="quiz-config-group">
+              <span class="filter-label">Practice</span>
+              <button class="filter-tag quiz-pool-tag active" data-quiz-pool="all" onclick="app.selectQuizPool(this)">All flags</button>
+              <button class="filter-tag quiz-pool-tag" data-quiz-pool="review" onclick="app.selectQuizPool(this)">Review only</button>
+              <button class="filter-tag quiz-pool-tag" data-quiz-pool="family" onclick="app.startFamilyLesson()">Flag families</button>
+              <button class="filter-tag quiz-pool-tag" data-quiz-pool="comparison" onclick="app.startComparisonTrainer()">Compare lookalikes</button>
+            </div>
+          </div>
         </div>
 
         <!-- Quiz Panel Screen -->
@@ -405,6 +475,7 @@
               <span class="quiz-option-text">Option D</span>
             </button>
           </div>
+          <div class="quiz-feedback" id="quiz-feedback" role="status" aria-live="polite" hidden></div>
         </div>
 
         <!-- Quiz Complete Summary Screen -->
@@ -431,9 +502,12 @@
           </div>
 
           <div class="summary-btn-group">
+            <button class="secondary-btn" id="retry-missed-btn" type="button" onclick="app.retryMissedQuiz()">Retry missed</button>
             <button class="secondary-btn" onclick="app.restartQuiz()">Restart Quiz</button>
             <button class="level-btn" onclick="app.switchView('dashboard')">Home</button>
           </div>
+          <div class="quiz-mistake-list" id="quiz-mistake-list"></div>
+          <div class="session-summary-list" id="quiz-session-summary"></div>
         </div>
       </section>
 
@@ -498,6 +572,7 @@
             <button class="secondary-btn" onclick="app.startMatchGame()">Play Again</button>
             <button class="level-btn" style="background: linear-gradient(135deg, var(--accent-purple) 0%, #7b2cbf 100%); box-shadow: var(--glow-purple);" onclick="app.switchView('dashboard')">Home</button>
           </div>
+          <div class="session-summary-list" id="match-session-summary"></div>
         </div>
       </section>
 
@@ -593,6 +668,10 @@
                 <div class="map-unplaced-detail" id="map-unplaced-detail"></div>
               </div>
             </div>
+            <div class="map-challenge-controls">
+              <button class="secondary-btn compact-btn" id="map-challenge-toggle" type="button" onclick="app.toggleMapChallenge()">Map challenge</button>
+              <span class="map-challenge-prompt" id="map-challenge-prompt" aria-live="polite"></span>
+            </div>
           </div>
 
           <div class="map-controls" aria-label="Map controls">
@@ -642,6 +721,18 @@
           </div>
           <span class="achievement-summary-percent" id="progress-achievements-percent">0% complete</span>
         </div>
+
+        <section class="progress-insights-panel glass-panel" aria-labelledby="progress-insights-title">
+          <div class="section-heading-row">
+            <div>
+              <span class="section-kicker">Learning intelligence</span>
+              <h2 id="progress-insights-title" class="path-section-title">Progress insights</h2>
+            </div>
+            <span class="section-inline-hint" id="progress-xp-summary">Level 1</span>
+          </div>
+          <div class="progress-insights-grid" id="progress-insights-grid"></div>
+          <div class="recent-session-list" id="recent-session-list"></div>
+        </section>
 
         <!-- Achievements Grid -->
         <div class="achievements-grid" id="achievements-list">

@@ -19,6 +19,8 @@ class VexillaApp {
     this.flashcardAdvanceTimeout = null;
     this.isAdvancingFlashcard = false;
     this.activeLevel = 1;
+    this.flashcardLearnedThisSession = 0;
+    this.flashcardReviewThisSession = 0;
 
     // Quiz state variables
     this.quizQuestions = [];
@@ -27,6 +29,12 @@ class VexillaApp {
     this.quizStreak = 0;
     this.quizMaxStreak = 0;
     this.quizAnswerPool = [];
+    this.quizMistakeCodes = [];
+    this.quizMode = 'flag-country';
+    this.quizPool = 'all';
+    this.quizFamily = '';
+    this.quizQuestionCount = 10;
+    this.quizAdvanceTimeout = null;
     this.activeQuizContinents = ['all'];
     this.activeFlashcardContinents = ['all'];
     this.activeMatchContinents = ['all'];
@@ -41,6 +49,7 @@ class VexillaApp {
     this.matchHelpViews = 0;
     this.matchHelpedIds = new Set();
     this.matchDisqualifiedIds = new Set();
+    this.matchSessionFlags = [];
 
     // Active Atlas filters
     this.activeFilters = {
@@ -50,7 +59,7 @@ class VexillaApp {
     };
 
     // Encyclopedia tracking
-    this.viewedCountries = new Set();
+    this.viewedCountries = new Set(this.state.viewedFlagCodes || []);
     this.modalKeyboardReady = false;
     this.lastModalTrigger = null;
 
@@ -59,12 +68,17 @@ class VexillaApp {
     this.mapDataUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
     this.flagImageCache = new Map();
     this.mapLocatorContext = null;
+    this.mapChallengeNext = null;
+    this.mapChallengeActive = false;
+    this.mapChallengeScore = 0;
 
     // Web Audio Context (lazy-loaded on user interaction)
     this.audioCtx = null;
   }
 
   init() {
+    this.viewedCountries = new Set(this.state.viewedFlagCodes || []);
+
     // Set initial theme
     document.documentElement.setAttribute('data-theme', this.state.theme);
 
@@ -81,8 +95,8 @@ class VexillaApp {
     const soundBtnText = document.getElementById('sound-btn-text');
     if (soundBtnText) soundBtnText.textContent = this.state.soundOn ? 'Sounds On' : 'Sounds Off';
 
-    // Calculate Streak
-    this.updateStreak();
+    // Learning streaks are based on real study actions, not app opens.
+    this.normalizeLearningStreak();
     this.pruneRetiredAchievements();
     this.setupModalKeyboardControls();
 
@@ -115,13 +129,22 @@ class VexillaApp {
       unlockedAchievements: [],
       soundOn: true,
       theme: 'dark',
+      flagProgress: {},
+      preferredContinent: 'Africa',
+      lastLearningDate: '',
+      learningStreak: 0,
+      xp: 0,
+      recentSessions: [],
+      activityCounts: {},
+      bestQuizStreak: 0,
+      viewedFlagCodes: [],
     };
 
     try {
       const saved = localStorage.getItem('vexilla_state');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { ...defaultState, ...parsed };
+        return this.getSanitizedState({ ...defaultState, ...parsed });
       }
     } catch (e) {
       console.error('Failed to load local storage state:', e);
@@ -147,6 +170,15 @@ class VexillaApp {
       unlockedAchievements: [],
       soundOn: true,
       theme: 'dark',
+      flagProgress: {},
+      preferredContinent: 'Africa',
+      lastLearningDate: '',
+      learningStreak: 0,
+      xp: 0,
+      recentSessions: [],
+      activityCounts: {},
+      bestQuizStreak: 0,
+      viewedFlagCodes: [],
     };
 
     if (!rawState || typeof rawState !== 'object') {
@@ -158,6 +190,8 @@ class VexillaApp {
     const cleanStringList = (value) => (Array.isArray(value) ? [...new Set(value.filter((item) => typeof item === 'string'))] : []);
     const highscore = Number(rawState.quizHighscore);
     const streak = Number(rawState.streak);
+    const xp = Number(rawState.xp);
+    const bestQuizStreak = Number(rawState.bestQuizStreak);
 
     return {
       ...defaults,
@@ -169,7 +203,161 @@ class VexillaApp {
       unlockedAchievements: cleanStringList(rawState.unlockedAchievements),
       soundOn: typeof rawState.soundOn === 'boolean' ? rawState.soundOn : defaults.soundOn,
       theme: rawState.theme === 'light' || rawState.theme === 'dark' ? rawState.theme : defaults.theme,
+      flagProgress: this.sanitizeFlagProgress(rawState.flagProgress, validCodes),
+      preferredContinent: ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'].includes(rawState.preferredContinent)
+        ? rawState.preferredContinent
+        : defaults.preferredContinent,
+      lastLearningDate: typeof rawState.lastLearningDate === 'string' ? rawState.lastLearningDate : defaults.lastLearningDate,
+      learningStreak: Number.isFinite(Number(rawState.learningStreak)) ? Math.max(0, Math.round(Number(rawState.learningStreak))) : defaults.learningStreak,
+      xp: Number.isFinite(xp) ? Math.max(0, Math.round(xp)) : defaults.xp,
+      recentSessions: this.sanitizeRecentSessions(rawState.recentSessions),
+      activityCounts: this.sanitizeActivityCounts(rawState.activityCounts),
+      bestQuizStreak: Number.isFinite(bestQuizStreak) ? Math.max(0, Math.round(bestQuizStreak)) : defaults.bestQuizStreak,
+      viewedFlagCodes: cleanCodeList(rawState.viewedFlagCodes),
     };
+  }
+
+  sanitizeFlagProgress(progress, validCodes = new Set(this.flags.map((flag) => flag.code))) {
+    if (!progress || typeof progress !== 'object' || Array.isArray(progress)) return {};
+    const cleaned = {};
+    Object.entries(progress).forEach(([code, entry]) => {
+      if (!validCodes.has(code) || !entry || typeof entry !== 'object') return;
+      cleaned[code] = {
+        correct: Math.max(0, Math.round(Number(entry.correct) || 0)),
+        incorrect: Math.max(0, Math.round(Number(entry.incorrect) || 0)),
+        confidence: Math.max(0, Math.min(5, Math.round(Number(entry.confidence) || 0))),
+        intervalDays: Math.max(0, Math.min(60, Number(entry.intervalDays) || 0)),
+        dueAt: typeof entry.dueAt === 'string' ? entry.dueAt : '',
+        lastSeenAt: typeof entry.lastSeenAt === 'string' ? entry.lastSeenAt : '',
+        lastStudiedAt: typeof entry.lastStudiedAt === 'string' ? entry.lastStudiedAt : '',
+        lastDetailViewedAt: typeof entry.lastDetailViewedAt === 'string' ? entry.lastDetailViewedAt : '',
+        lastResult: entry.lastResult === 'correct' || entry.lastResult === 'incorrect' ? entry.lastResult : '',
+        attempts: Math.max(0, Math.round(Number(entry.attempts) || 0)),
+        detailsViewed: Math.max(0, Math.round(Number(entry.detailsViewed) || 0)),
+      };
+    });
+    return cleaned;
+  }
+
+  sanitizeRecentSessions(sessions) {
+    if (!Array.isArray(sessions)) return [];
+    const allowedTypes = new Set(['quiz', 'flashcards', 'match', 'map']);
+    return sessions
+      .filter((session) => session && typeof session === 'object' && allowedTypes.has(session.type))
+      .slice(0, 12)
+      .map((session) => ({
+        type: session.type,
+        title: typeof session.title === 'string' ? session.title.slice(0, 80) : 'Learning session',
+        detail: typeof session.detail === 'string' ? session.detail.slice(0, 180) : '',
+        date: typeof session.date === 'string' ? session.date : '',
+        xp: Math.max(0, Math.round(Number(session.xp) || 0)),
+        accuracy: Number.isFinite(Number(session.accuracy)) ? Math.max(0, Math.min(100, Math.round(Number(session.accuracy)))) : null,
+      }));
+  }
+
+  sanitizeActivityCounts(counts) {
+    const cleaned = { quiz: 0, flashcards: 0, match: 0, map: 0, detailsViewed: 0 };
+    if (!counts || typeof counts !== 'object') return cleaned;
+    Object.keys(cleaned).forEach((key) => {
+      cleaned[key] = Math.max(0, Math.round(Number(counts[key]) || 0));
+    });
+    return cleaned;
+  }
+
+  getFlagProgress(flagCode) {
+    if (!this.state.flagProgress || typeof this.state.flagProgress !== 'object') this.state.flagProgress = {};
+    if (!this.state.flagProgress[flagCode]) {
+      this.state.flagProgress[flagCode] = {
+        correct: 0,
+        incorrect: 0,
+        confidence: 0,
+        intervalDays: 0,
+        dueAt: '',
+        lastSeenAt: '',
+        lastStudiedAt: '',
+        lastDetailViewedAt: '',
+        lastResult: '',
+        attempts: 0,
+        detailsViewed: 0,
+      };
+    }
+    return this.state.flagProgress[flagCode];
+  }
+
+  getDueFlags() {
+    const now = Date.now();
+    return this.flags.filter((flag) => {
+      const progress = this.state.flagProgress?.[flag.code];
+      return progress && progress.dueAt && new Date(progress.dueAt).getTime() <= now;
+    });
+  }
+
+  recordLearningActivity() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.state.lastLearningDate === today) return;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    this.state.learningStreak = this.state.lastLearningDate === yesterday ? this.state.learningStreak + 1 : 1;
+    this.state.lastLearningDate = today;
+    this.state.streak = this.state.learningStreak;
+    if (this.state.learningStreak === 1) {
+      this.spawnToast('Learning streak started', 'A real study action counted for today.', '🔥', 7000);
+    } else {
+      this.spawnToast('Learning streak continues', `${this.state.learningStreak} study days in a row.`, '🔥', 7000);
+    }
+  }
+
+  recordFlagResult(flagCode, result) {
+    const progress = this.getFlagProgress(flagCode);
+    const now = new Date();
+    progress.lastSeenAt = now.toISOString();
+    progress.lastStudiedAt = progress.lastSeenAt;
+    progress.lastResult = result;
+    progress.attempts += 1;
+    if (result === 'correct') {
+      progress.correct += 1;
+      progress.confidence = Math.min(5, progress.confidence + 1);
+      const intervals = [1, 2, 4, 8, 16, 30];
+      progress.intervalDays = intervals[progress.confidence] || 30;
+      progress.dueAt = new Date(now.getTime() + progress.intervalDays * 86400000).toISOString();
+    } else {
+      progress.incorrect += 1;
+      progress.confidence = Math.max(0, progress.confidence - 1);
+      progress.intervalDays = 0;
+      progress.dueAt = new Date(now.getTime() + 10 * 60000).toISOString();
+      if (!this.state.needReviewFlags.includes(flagCode)) this.state.needReviewFlags.push(flagCode);
+    }
+    this.recordLearningActivity();
+    this.saveState();
+  }
+
+  recordFlagDetailView(flagCode) {
+    const progress = this.getFlagProgress(flagCode);
+    progress.detailsViewed += 1;
+    progress.lastDetailViewedAt = new Date().toISOString();
+    this.state.activityCounts.detailsViewed = (this.state.activityCounts.detailsViewed || 0) + 1;
+    this.saveState();
+  }
+
+  addRecentSession(session) {
+    const cleanSession = this.sanitizeRecentSessions([{ ...session, date: new Date().toISOString() }])[0];
+    if (!cleanSession) return;
+    this.state.recentSessions = [cleanSession, ...(this.state.recentSessions || [])].slice(0, 12);
+  }
+
+  getExplorerLevel() {
+    const xp = this.state.xp || 0;
+    const level = Math.floor(xp / 250) + 1;
+    const currentLevelXp = (level - 1) * 250;
+    const nextLevelXp = level * 250;
+    return { level, xp, currentLevelXp, nextLevelXp, progress: Math.round(((xp - currentLevelXp) / 250) * 100) };
+  }
+
+  awardXp(amount, reason = '') {
+    const gained = Math.max(0, Math.round(Number(amount) || 0));
+    if (!gained) return 0;
+    this.state.xp = (this.state.xp || 0) + gained;
+    if (reason) this.spawnToast('Explorer XP earned', `${reason}: +${gained} XP`, '+', 7000);
+    return gained;
   }
 
   getProgressBackupPayload() {
@@ -422,35 +610,18 @@ class VexillaApp {
   }
 
   // --- STREAK CALCULATOR ---
-  updateStreak() {
-    const today = new Date().toISOString().split('T')[0]; // e.g. "2026-06-21"
-
-    if (this.state.lastActiveDate === today) {
-      return; // Already logged active day today
+  normalizeLearningStreak() {
+    if (!this.state.lastLearningDate) {
+      this.state.streak = 0;
+      this.saveState();
+      return;
     }
-
-    if (this.state.lastActiveDate === '') {
-      // First time loading the app
-      this.state.streak = 1;
-    } else {
-      const lastDate = new Date(this.state.lastActiveDate);
-      const currentDate = new Date(today);
-
-      // Calculate day difference
-      const timeDiff = Math.abs(currentDate.getTime() - lastDate.getTime());
-      const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-      if (diffDays === 1) {
-        this.state.streak += 1;
-        this.spawnToast('Streak Continues!', `You have kept your daily streak for ${this.state.streak} days. Keep it up!`, '🔥');
-      } else if (diffDays > 1) {
-        // Streak broken
-        this.state.streak = 1;
-        this.spawnToast('New Streak Started', 'Welcome back! Start your new daily learning streak today.', '🌱');
-      }
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (this.state.lastLearningDate !== today && this.state.lastLearningDate !== yesterday) {
+      this.state.learningStreak = 0;
     }
-
-    this.state.lastActiveDate = today;
+    this.state.streak = this.state.learningStreak;
     this.saveState();
   }
 
@@ -466,13 +637,65 @@ class VexillaApp {
     const highscoreSpan = document.getElementById('stats-highscore');
     if (highscoreSpan) highscoreSpan.textContent = `${this.state.quizHighscore}%`;
 
+    const explorer = this.getExplorerLevel();
+    const levelSpan = document.getElementById('stats-level');
+    if (levelSpan) levelSpan.textContent = `Level ${explorer.level}`;
+
     const streakSpan = document.getElementById('stats-streak');
-    if (streakSpan) streakSpan.textContent = `${this.state.streak} day${this.state.streak === 1 ? '' : 's'}`;
+    const learningStreak = this.state.learningStreak || 0;
+    if (streakSpan) streakSpan.textContent = `${learningStreak} day${learningStreak === 1 ? '' : 's'}`;
 
     const achievementSpan = document.getElementById('stats-achievements');
     const achievements = this.getAchievementsDefinition();
     const activeUnlockedCount = this.getActiveUnlockedAchievementIds(achievements).length;
     if (achievementSpan) achievementSpan.textContent = `${activeUnlockedCount} / ${achievements.length}`;
+
+    const dueFlags = this.getDueFlags();
+    const dueEl = document.getElementById('today-due-count');
+    if (dueEl) dueEl.textContent = `${dueFlags.length} due`;
+    const planTitle = document.getElementById('today-plan-title');
+    const planCopy = document.getElementById('today-plan-copy');
+    const planButton = document.getElementById('today-plan-button');
+    const reviewCount = this.state.needReviewFlags.length;
+    if (dueFlags.length > 0) {
+      if (planTitle) planTitle.textContent = 'Keep your recall fresh';
+      if (planCopy) planCopy.textContent = `${dueFlags.length} flag${dueFlags.length === 1 ? '' : 's'} are ready for a quick review.`;
+      if (planButton) {
+        planButton.textContent = 'Review due flags';
+        planButton.onclick = () => this.startReviewDeck('due');
+      }
+    } else if (reviewCount > 0) {
+      if (planTitle) planTitle.textContent = 'Turn uncertainty into recall';
+      if (planCopy) planCopy.textContent = `${reviewCount} flag${reviewCount === 1 ? '' : 's'} are waiting in your review queue.`;
+      if (planButton) {
+        planButton.textContent = 'Open review queue';
+        planButton.onclick = () => this.startReviewDeck('flagged');
+      }
+    } else {
+      const continent = this.getBestLearningContinent();
+      if (planTitle) planTitle.textContent = `Continue with ${continent}`;
+      if (planCopy) planCopy.textContent = `Learn a few new ${continent} flags, then test yourself while they are fresh.`;
+      if (planButton) {
+        planButton.textContent = `Study ${continent}`;
+        planButton.onclick = () => this.startContinentPath(continent);
+      }
+    }
+
+    const continentProgress = document.getElementById('continent-progress-list');
+    if (continentProgress) {
+      const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+      continentProgress.innerHTML = '';
+      continentOrder.forEach((continent) => {
+        const flags = this.flags.filter((flag) => flag.continent === continent);
+        const mastered = flags.filter((flag) => this.state.learnedFlags.includes(flag.code)).length;
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'continent-progress-row';
+        row.innerHTML = `<span>${continent}</span><strong>${mastered} / ${flags.length}</strong><i><b style="width:${flags.length ? Math.round((mastered / flags.length) * 100) : 0}%"></b></i>`;
+        row.onclick = () => this.startContinentPath(continent);
+        continentProgress.appendChild(row);
+      });
+    }
 
     // Level Progress Bars
     const levels = [1, 2, 3];
@@ -517,6 +740,12 @@ class VexillaApp {
     this.shuffle(this.currentDeck);
 
     this.currentDeckIndex = 0;
+    this.flashcardLearnedThisSession = 0;
+    this.flashcardReviewThisSession = 0;
+    const summary = document.getElementById('flashcard-summary-panel');
+    if (summary) summary.style.display = 'none';
+    const studyFlow = document.querySelector('.study-flow-container');
+    if (studyFlow) studyFlow.style.display = 'flex';
 
     // Update Title
     const studyTitle = document.getElementById('study-level-title');
@@ -533,15 +762,34 @@ class VexillaApp {
     if (this.currentDeckIndex >= this.currentDeck.length) {
       // Finished the deck!
       this.playSuccessChime();
-      this.spawnToast('Deck Complete!', `You have completed studying all cards in this round!`, '🏆');
+      const deckCount = this.currentDeck.length;
+      const xpGained = this.awardXp(Math.max(10, deckCount * 4 + this.flashcardLearnedThisSession * 4));
+      this.state.activityCounts.flashcards = (this.state.activityCounts.flashcards || 0) + 1;
+      this.addRecentSession({
+        type: 'flashcards',
+        title: 'Flashcard deck complete',
+        detail: `${deckCount} card${deckCount === 1 ? '' : 's'} studied, ${this.flashcardReviewThisSession} marked for review`,
+        xp: xpGained,
+      });
+      this.saveState();
+      const studyFlow = document.querySelector('.study-flow-container');
+      if (studyFlow) studyFlow.style.display = 'none';
+      const summary = document.getElementById('flashcard-summary-panel');
+      if (summary) summary.style.display = 'flex';
+      const title = document.getElementById('flashcard-summary-title');
+      if (title) title.textContent = 'Complete';
+      const subtitle = document.getElementById('flashcard-summary-subtitle');
+      if (subtitle) subtitle.textContent = `${deckCount} card${deckCount === 1 ? '' : 's'} studied.`;
+      this.renderSessionSummary(document.getElementById('flashcard-session-summary'), [
+        { label: 'Explorer XP', value: `+${xpGained}` },
+        { label: 'Marked known', value: `${this.flashcardLearnedThisSession}` },
+        { label: 'Needs review', value: `${this.flashcardReviewThisSession}` },
+      ]);
+      this.spawnToast('Deck Complete!', `You studied ${deckCount} card${deckCount === 1 ? '' : 's'}.`, '🏆');
 
       this.checkAchievements();
       this.currentDeck = [];
       this.currentDeckIndex = 0;
-      this.flashcardCompletionTimeout = setTimeout(() => {
-        this.flashcardCompletionTimeout = null;
-        this.switchView('dashboard');
-      }, 1500);
       return;
     }
 
@@ -609,6 +857,7 @@ class VexillaApp {
     }
 
     if (actionType === 'learned') {
+      this.flashcardLearnedThisSession++;
       // Add to learned list if not already there
       if (!this.state.learnedFlags.includes(activeFlag.code)) {
         this.state.learnedFlags.push(activeFlag.code);
@@ -617,7 +866,9 @@ class VexillaApp {
       this.state.needReviewFlags = this.state.needReviewFlags.filter((code) => code !== activeFlag.code);
 
       this.playCorrectChime();
+      this.recordFlagResult(activeFlag.code, 'correct');
     } else if (actionType === 'review') {
+      this.flashcardReviewThisSession++;
       // Add to review list if not already there
       if (!this.state.needReviewFlags.includes(activeFlag.code)) {
         this.state.needReviewFlags.push(activeFlag.code);
@@ -626,6 +877,7 @@ class VexillaApp {
       this.state.learnedFlags = this.state.learnedFlags.filter((code) => code !== activeFlag.code);
 
       this.playAudioTone(294, 'triangle', 0.25); // Lower chime tone
+      this.recordFlagResult(activeFlag.code, 'incorrect');
     }
 
     this.saveState();
@@ -652,6 +904,39 @@ class VexillaApp {
       this.loadNextFlashcard();
       this.isAdvancingFlashcard = false;
     }
+  }
+
+  getBestLearningContinent() {
+    const continents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+    const preferred = this.state.preferredContinent;
+    const remainingInPreferred = this.flags.some((flag) => flag.continent === preferred && !this.state.learnedFlags.includes(flag.code));
+    if (remainingInPreferred) return preferred;
+    return continents
+      .map((continent) => ({ continent, mastered: this.flags.filter((flag) => flag.continent === continent && this.state.learnedFlags.includes(flag.code)).length }))
+      .sort((a, b) => a.mastered - b.mastered)[0]?.continent || 'Africa';
+  }
+
+  startContinentPath(continent) {
+    this.state.preferredContinent = continent;
+    this.activeFlashcardContinents = [continent];
+    this.saveState();
+    this.startLevel(1);
+  }
+
+  startReviewDeck(kind = 'flagged') {
+    const reviewCodes = kind === 'due' ? this.getDueFlags().map((flag) => flag.code) : this.state.needReviewFlags;
+    const selectedCodes = new Set(reviewCodes);
+    const deck = this.flags.filter((flag) => selectedCodes.has(flag.code));
+    if (!deck.length) {
+      this.spawnToast('Review queue is clear', 'You have no flags waiting for review right now.', '✓');
+      return;
+    }
+    this.currentDeck = this.shuffle([...deck]);
+    this.currentDeckIndex = 0;
+    this.activeLevel = 0;
+    const studyTitle = document.getElementById('study-level-title');
+    if (studyTitle) studyTitle.textContent = kind === 'due' ? 'Review Deck: Due Today' : 'Review Deck: Needs Review';
+    this.switchView('flashcards');
   }
 
   // --- QUIZ ENGINE ---
@@ -727,27 +1012,90 @@ class VexillaApp {
     this.selectContinentForMode('quiz', element, event);
   }
 
-  startQuiz(customLevel = null, customContinents = null) {
-    // Custom levels are supported, but quiz mode defaults to all difficulty levels.
-    const quizLevel = customLevel;
-    const quizContinents = customContinents || this.activeQuizContinents;
+  selectQuizMode(element) {
+    this.quizMode = element.getAttribute('data-quiz-mode') || 'flag-country';
+    document.querySelectorAll('.quiz-mode-tag').forEach((tag) => tag.classList.toggle('active', tag === element));
+    this.startQuiz();
+  }
 
-    let filteredFlags = this.flags;
-    if (quizLevel) {
-      filteredFlags = filteredFlags.filter((f) => f.difficulty === quizLevel);
+  selectQuizPool(element) {
+    this.quizPool = element.getAttribute('data-quiz-pool') || 'all';
+    this.quizFamily = '';
+    document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag === element));
+    this.startQuiz();
+  }
+
+  getFlagFamilyGroups() {
+    return {
+      'Nordic cross': ['dk', 'se', 'no', 'fi', 'is'],
+      'Pan-African colors': ['gh', 'et', 'ml', 'gn', 'cm', 'sn', 'bf'],
+      'Pan-Arab colors': ['jo', 'ae', 'ps', 'iq', 'sy', 'ye', 'kw'],
+      'Slavic tricolors': ['ru', 'sk', 'si', 'rs', 'hr', 'cz'],
+    };
+  }
+
+  getComparisonGroups() {
+    return [
+      ['ro', 'td'],
+      ['id', 'mc'],
+      ['nl', 'lu'],
+      ['au', 'nz'],
+      ['ie', 'ci'],
+      ['ml', 'gn', 'sn'],
+      ['hn', 'sv', 'ni'],
+    ];
+  }
+
+  startFamilyLesson(familyName = '') {
+    const families = this.getFlagFamilyGroups();
+    const names = Object.keys(families);
+    const currentIndex = names.indexOf(this.quizFamily);
+    this.quizFamily = familyName || names[(currentIndex + 1) % names.length];
+    this.quizPool = 'family';
+    this.quizMode = 'flag-country';
+    document.querySelectorAll('.quiz-mode-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-mode') === this.quizMode));
+    document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-pool') === 'family'));
+    this.spawnToast('Flag Family Lesson', `Training the ${this.quizFamily} family. Notice the shared pattern, then learn the differences.`, '◈');
+    this.startQuiz();
+  }
+
+  startComparisonTrainer() {
+    this.quizPool = 'comparison';
+    this.quizMode = 'flag-country';
+    document.querySelectorAll('.quiz-mode-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-mode') === this.quizMode));
+    document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-pool') === 'comparison'));
+    this.spawnToast('Comparison Trainer', 'These rounds use deliberately similar flags. Look for the small detail that separates them.', '◎');
+    this.startQuiz();
+  }
+
+  getQuizPoolFlags(customLevel = null, customContinents = null) {
+    const quizContinents = customContinents || this.activeQuizContinents;
+    let filteredFlags = [...this.flags];
+    if (customLevel) filteredFlags = filteredFlags.filter((flag) => flag.difficulty === customLevel);
+    if (!quizContinents.includes('all')) filteredFlags = filteredFlags.filter((flag) => quizContinents.includes(flag.continent));
+    if (this.quizPool === 'review') {
+      const reviewCodes = new Set([...this.state.needReviewFlags, ...this.getDueFlags().map((flag) => flag.code)]);
+      filteredFlags = filteredFlags.filter((flag) => reviewCodes.has(flag.code));
+    } else if (this.quizPool === 'family') {
+      const codes = new Set(this.getFlagFamilyGroups()[this.quizFamily] || []);
+      filteredFlags = filteredFlags.filter((flag) => codes.has(flag.code));
+    } else if (this.quizPool === 'comparison') {
+      const codes = new Set(this.getComparisonGroups().flat());
+      filteredFlags = filteredFlags.filter((flag) => codes.has(flag.code));
     }
-    if (!quizContinents.includes('all')) {
-      filteredFlags = filteredFlags.filter((f) => quizContinents.includes(f.continent));
-    }
+    return filteredFlags;
+  }
+
+  startQuiz(customLevel = null, customContinents = null) {
+    let filteredFlags = this.getQuizPoolFlags(customLevel, customContinents);
 
     if (filteredFlags.length < 4) {
-      this.spawnToast('Quiz Setup Failed', 'Select a larger category. Need at least 4 flags.', '⚠️');
+      this.spawnToast('Practice pool is small', 'Choose another continent or add a few flags to your review queue first.', '⚠️');
       return;
     }
 
-    // Pick 10 random flags (or all if filtered count is less)
     this.shuffle(filteredFlags);
-    this.quizQuestions = filteredFlags.slice(0, Math.min(10, filteredFlags.length));
+    this.quizQuestions = filteredFlags.slice(0, Math.min(this.quizQuestionCount, filteredFlags.length));
     this.quizAnswerPool = [...filteredFlags];
 
     // Reset counters
@@ -755,6 +1103,7 @@ class VexillaApp {
     this.quizScore = 0;
     this.quizStreak = 0;
     this.quizMaxStreak = 0;
+    this.quizMistakeCodes = [];
 
     // UI Panels toggle
     document.getElementById('quiz-game-panel').style.display = 'flex';
@@ -765,26 +1114,40 @@ class VexillaApp {
   }
 
   loadQuizQuestion() {
+    if (this.quizAdvanceTimeout) {
+      clearTimeout(this.quizAdvanceTimeout);
+      this.quizAdvanceTimeout = null;
+    }
     const questionFlag = this.quizQuestions[this.currentQuizIndex];
-
-    // Generate Options (1 correct, 3 incorrect)
-    const options = [questionFlag.name];
-
-    // Get list of all other country names
+    if (!questionFlag) return;
     const answerPool = this.quizAnswerPool.length >= 4 ? this.quizAnswerPool : this.flags;
-    const distractors = answerPool.filter((f) => f.name !== questionFlag.name).map((f) => f.name);
-
-    this.shuffle(distractors);
-
-    // Pick 3 unique distractors
-    options.push(distractors[0], distractors[1], distractors[2]);
+    const distractors = this.getSmartQuizDistractors(questionFlag, answerPool);
+    const usesFlagOptions = this.quizMode === 'country-flag' || this.quizMode === 'capital-flag';
+    const correctValue = usesFlagOptions ? questionFlag.code : this.quizMode === 'flag-capital' ? questionFlag.capital : questionFlag.name;
+    const options = [correctValue, ...distractors.slice(0, 3).map((flag) => (usesFlagOptions ? flag.code : this.quizMode === 'flag-capital' ? flag.capital : flag.name))];
     this.shuffle(options);
 
     // Renders flag
     const flagImg = document.getElementById('quiz-flag-img');
     if (flagImg) {
+      const flagBox = flagImg.closest('.quiz-flag-box');
+      const hidesQuestionFlag = usesFlagOptions;
+      if (flagBox) flagBox.hidden = hidesQuestionFlag;
       flagImg.src = `https://flagcdn.com/w320/${questionFlag.code}.png`;
-      flagImg.alt = `Flag of a country`;
+      flagImg.alt = hidesQuestionFlag ? '' : `Flag of a country`;
+    }
+    const prompt = document.getElementById('quiz-question-text');
+    if (prompt) {
+      const familyPrefix = this.quizPool === 'family' ? `${this.quizFamily}: ` : '';
+      if (this.quizMode === 'country-flag') prompt.textContent = `${familyPrefix}Which flag belongs to ${questionFlag.name}?`;
+      else if (this.quizMode === 'flag-capital') prompt.textContent = `${familyPrefix}What is the capital of this country?`;
+      else if (this.quizMode === 'capital-flag') prompt.textContent = `${familyPrefix}Which flag belongs to ${questionFlag.capital}?`;
+      else prompt.textContent = `${familyPrefix}Which country does this flag belong to?`;
+    }
+    const feedback = document.getElementById('quiz-feedback');
+    if (feedback) {
+      feedback.hidden = true;
+      feedback.textContent = '';
     }
 
     // Set Stats headers
@@ -800,25 +1163,163 @@ class VexillaApp {
     const optionsContainer = document.getElementById('quiz-options-container');
     optionsContainer.innerHTML = '';
 
-    options.forEach((optText, index) => {
+    options.forEach((optionValue, index) => {
       const letters = ['A', 'B', 'C', 'D'];
       const btn = document.createElement('button');
       btn.className = 'quiz-option glass-panel';
-      btn.innerHTML = `
-        <span class="quiz-option-letter">${letters[index]}</span>
-        <span class="quiz-option-text">${optText}</span>
-      `;
-      btn.onclick = () => this.checkQuizAnswer(btn, optText, questionFlag.name);
+      btn.dataset.answerValue = optionValue;
+      const letter = document.createElement('span');
+      letter.className = 'quiz-option-letter';
+      letter.textContent = letters[index];
+      const text = document.createElement('span');
+      text.className = 'quiz-option-text';
+      if (usesFlagOptions) {
+        btn.classList.add('flag-answer-option');
+        const optionFlag = this.flags.find((flag) => flag.code === optionValue);
+        const optionImage = document.createElement('img');
+        optionImage.className = 'quiz-option-flag';
+        optionImage.src = `https://flagcdn.com/w80/${optionValue}.png`;
+        optionImage.alt = optionFlag ? `Flag option ${letters[index]}` : '';
+        text.append(optionImage);
+        if (optionFlag) {
+          btn.setAttribute('aria-label', `Option ${letters[index]}: flag of ${optionFlag.name}`);
+        }
+      } else {
+        text.textContent = optionValue;
+      }
+      btn.append(letter, text);
+      btn.onclick = () => this.checkQuizAnswer(btn, optionValue, correctValue, questionFlag);
       optionsContainer.appendChild(btn);
     });
   }
 
-  checkQuizAnswer(clickedBtn, selectedText, correctText) {
+  getFlagStats() {
+    return this.flags.map((flag) => {
+      const progress = this.state.flagProgress?.[flag.code] || {};
+      const correct = progress.correct || 0;
+      const incorrect = progress.incorrect || 0;
+      const attempts = progress.attempts || correct + incorrect;
+      const accuracy = attempts > 0 ? Math.round((correct / attempts) * 100) : null;
+      return { flag, progress, correct, incorrect, attempts, accuracy };
+    });
+  }
+
+  getContinentInsights() {
+    const continents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+    return continents.map((continent) => {
+      const stats = this.getFlagStats().filter((item) => item.flag.continent === continent);
+      const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
+      const correct = stats.reduce((sum, item) => sum + item.correct, 0);
+      const learned = stats.filter((item) => this.state.learnedFlags.includes(item.flag.code)).length;
+      return {
+        continent,
+        attempts,
+        accuracy: attempts > 0 ? Math.round((correct / attempts) * 100) : null,
+        learned,
+        total: stats.length,
+      };
+    });
+  }
+
+  renderSessionSummary(container, items = []) {
+    if (!container) return;
+    container.textContent = '';
+    items.filter(Boolean).forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'session-summary-item';
+      row.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong>`;
+      container.appendChild(row);
+    });
+  }
+
+  getMostMissedFlags(limit = 3) {
+    return this.getFlagStats()
+      .filter((item) => item.incorrect > 0)
+      .sort((a, b) => b.incorrect - a.incorrect || a.flag.name.localeCompare(b.flag.name))
+      .slice(0, limit)
+      .map((item) => item.flag);
+  }
+
+  renderProgressInsights() {
+    const grid = document.getElementById('progress-insights-grid');
+    const sessionList = document.getElementById('recent-session-list');
+    const xpSummary = document.getElementById('progress-xp-summary');
+    if (!grid || !sessionList) return;
+
+    const explorer = this.getExplorerLevel();
+    if (xpSummary) xpSummary.textContent = `Level ${explorer.level} • ${explorer.xp} XP`;
+
+    const continentInsights = this.getContinentInsights().filter((item) => item.attempts > 0);
+    const strongest = [...continentInsights].sort((a, b) => (b.accuracy ?? -1) - (a.accuracy ?? -1))[0];
+    const weakest = [...continentInsights].sort((a, b) => (a.accuracy ?? 101) - (b.accuracy ?? 101))[0];
+    const missed = this.getMostMissedFlags(3);
+    const due = this.getDueFlags();
+    const studiedFlags = this.getFlagStats().filter((item) => item.attempts > 0).length;
+    const detailsViewed = this.state.activityCounts?.detailsViewed || 0;
+
+    const insightCards = [
+      { label: 'Explorer XP', value: `${explorer.xp} XP`, detail: `${250 - (explorer.xp - explorer.currentLevelXp)} XP to Level ${explorer.level + 1}` },
+      { label: 'Flags practiced', value: `${studiedFlags} / ${this.flags.length}`, detail: 'Answered or matched at least once' },
+      { label: 'Due today', value: `${due.length}`, detail: due.length ? 'Ready for spaced review' : 'Nothing overdue right now' },
+      { label: 'Strongest continent', value: strongest ? `${strongest.continent}` : 'Not enough data', detail: strongest ? `${strongest.accuracy}% accuracy` : 'Practice a quiz or match round' },
+      { label: 'Needs attention', value: weakest ? `${weakest.continent}` : 'Not enough data', detail: weakest ? `${weakest.accuracy}% accuracy` : 'Mistakes will appear here' },
+      { label: 'Details viewed', value: `${detailsViewed}`, detail: 'Flag detail panels opened' },
+    ];
+
+    grid.textContent = '';
+    insightCards.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'progress-insight-card';
+      card.innerHTML = `<span>${item.label}</span><strong>${item.value}</strong><small>${item.detail}</small>`;
+      grid.appendChild(card);
+    });
+
+    sessionList.textContent = '';
+    const header = document.createElement('div');
+    header.className = 'recent-session-header';
+    header.innerHTML = `<span>Recent sessions</span><strong>${missed.length ? `Most missed: ${missed.map((flag) => flag.name).join(', ')}` : 'Keep practicing to build insights'}</strong>`;
+    sessionList.appendChild(header);
+
+    const sessions = this.state.recentSessions || [];
+    if (!sessions.length) {
+      const empty = document.createElement('p');
+      empty.className = 'recent-session-empty';
+      empty.textContent = 'Complete a quiz, flashcard deck, or match game to start building a learning history.';
+      sessionList.appendChild(empty);
+      return;
+    }
+
+    sessions.slice(0, 6).forEach((session) => {
+      const row = document.createElement('div');
+      row.className = 'recent-session-row';
+      const accuracy = session.accuracy == null ? '' : ` • ${session.accuracy}%`;
+      row.innerHTML = `<span>${session.title}</span><strong>+${session.xp} XP${accuracy}</strong><small>${session.detail}</small>`;
+      sessionList.appendChild(row);
+    });
+  }
+
+  getSmartQuizDistractors(questionFlag, answerPool) {
+    const scoreSimilarity = (flag) => {
+      const sharedColors = flag.colors.filter((color) => questionFlag.colors.includes(color)).length;
+      const sharedFeatures = flag.features.filter((feature) => questionFlag.features.includes(feature) || (feature === 'star' && questionFlag.features.includes('stars')) || (feature === 'stars' && questionFlag.features.includes('star'))).length;
+      const sameContinent = flag.continent === questionFlag.continent ? 1 : 0;
+      return sharedColors * 4 + sharedFeatures * 3 + sameContinent;
+    };
+    const candidates = answerPool.filter((flag) => flag.code !== questionFlag.code);
+    const ranked = [...candidates].sort((a, b) => scoreSimilarity(b) - scoreSimilarity(a) || Math.random() - 0.5);
+    const closeChoices = ranked.slice(0, Math.min(8, ranked.length));
+    this.shuffle(closeChoices);
+    const remaining = ranked.filter((flag) => !closeChoices.includes(flag));
+    this.shuffle(remaining);
+    return [...closeChoices, ...remaining];
+  }
+
+  checkQuizAnswer(clickedBtn, selectedValue, correctValue, questionFlag) {
     // Disable all options
     const optionsButtons = document.querySelectorAll('.quiz-option');
     optionsButtons.forEach((btn) => (btn.disabled = true));
 
-    const isCorrect = selectedText === correctText;
+    const isCorrect = selectedValue === correctValue;
 
     if (isCorrect) {
       clickedBtn.classList.add('correct');
@@ -828,28 +1329,56 @@ class VexillaApp {
         this.quizMaxStreak = this.quizStreak;
       }
       this.playCorrectChime();
+      this.recordFlagResult(questionFlag.code, 'correct');
     } else {
       clickedBtn.classList.add('incorrect');
       // Highlight correct answer in green
       optionsButtons.forEach((btn) => {
         const textSpan = btn.querySelector('.quiz-option-text');
-        if (textSpan && textSpan.textContent === correctText) {
+        if (btn.dataset.answerValue === correctValue || textSpan?.textContent?.includes(correctValue)) {
           btn.classList.add('correct');
         }
       });
       this.quizStreak = 0;
       this.playFailureBuzz();
+      if (!this.quizMistakeCodes.includes(questionFlag.code)) this.quizMistakeCodes.push(questionFlag.code);
+      this.recordFlagResult(questionFlag.code, 'incorrect');
+      const feedback = document.getElementById('quiz-feedback');
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.innerHTML = '';
+        const copy = document.createElement('div');
+        copy.className = 'quiz-feedback-copy';
+        const title = document.createElement('strong');
+        title.textContent = `${questionFlag.name}: `;
+        const detail = document.createElement('span');
+        detail.textContent = this.getMemoryHook(questionFlag) || questionFlag.fact || 'Take another look at the flag details and try the next one.';
+        copy.append(title, detail);
+        const nextButton = document.createElement('button');
+        nextButton.type = 'button';
+        nextButton.className = 'quiz-feedback-close';
+        nextButton.setAttribute('aria-label', 'Close feedback and go to the next question');
+        nextButton.innerHTML = '<span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+        nextButton.onclick = () => this.advanceQuizQuestion();
+        feedback.append(copy, nextButton);
+      }
     }
 
     // Wait and progress
-    setTimeout(() => {
-      this.currentQuizIndex++;
-      if (this.currentQuizIndex < this.quizQuestions.length) {
-        this.loadQuizQuestion();
-      } else {
-        this.showQuizSummary();
-      }
-    }, 1500);
+    this.quizAdvanceTimeout = setTimeout(() => this.advanceQuizQuestion(), isCorrect ? 850 : 7000);
+  }
+
+  advanceQuizQuestion() {
+    if (this.quizAdvanceTimeout) {
+      clearTimeout(this.quizAdvanceTimeout);
+      this.quizAdvanceTimeout = null;
+    }
+    this.currentQuizIndex++;
+    if (this.currentQuizIndex < this.quizQuestions.length) {
+      this.loadQuizQuestion();
+    } else {
+      this.showQuizSummary();
+    }
   }
 
   showQuizSummary() {
@@ -865,10 +1394,45 @@ class VexillaApp {
     document.getElementById('sum-score').textContent = `${accuracy}%`;
     document.getElementById('sum-subtitle').textContent = `You correctly answered ${this.quizScore} out of ${totalCount} questions.`;
 
-    // Points Gained: 10 XP per correct answer
-    const pointsGained = this.quizScore * 10;
+    // Points Gained: quiz XP is now persistent explorer progress.
+    const pointsGained = this.awardXp(this.quizScore * 10 + (accuracy === 100 ? 25 : 0));
     document.getElementById('sum-points').textContent = `+${pointsGained} XP`;
     document.getElementById('sum-max-streak').textContent = `${this.quizMaxStreak} 🔥`;
+    this.state.activityCounts.quiz = (this.state.activityCounts.quiz || 0) + 1;
+    this.addRecentSession({
+      type: 'quiz',
+      title: 'Quiz complete',
+      detail: `${this.quizScore} of ${totalCount} correct${this.quizMistakeCodes.length ? `, ${this.quizMistakeCodes.length} to review` : ''}`,
+      xp: pointsGained,
+      accuracy,
+    });
+    this.renderSessionSummary(document.getElementById('quiz-session-summary'), [
+      { label: 'New review items', value: `${this.quizMistakeCodes.length}` },
+      { label: 'Explorer level', value: `Level ${this.getExplorerLevel().level}` },
+      { label: 'Due after this', value: `${this.getDueFlags().length}` },
+    ]);
+    const retryButton = document.getElementById('retry-missed-btn');
+    if (retryButton) retryButton.hidden = this.quizMistakeCodes.length === 0;
+    const mistakeList = document.getElementById('quiz-mistake-list');
+    if (mistakeList) {
+      mistakeList.textContent = '';
+      if (this.quizMistakeCodes.length) {
+        const label = document.createElement('span');
+        label.className = 'quiz-mistake-label';
+        label.textContent = 'Practice these next';
+        mistakeList.appendChild(label);
+        this.quizMistakeCodes.forEach((code) => {
+          const flag = this.flags.find((item) => item.code === code);
+          if (!flag) return;
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'quiz-mistake-item';
+          item.textContent = flag.name;
+          item.onclick = () => this.openFlagModal(flag);
+          mistakeList.appendChild(item);
+        });
+      }
+    }
 
     // Set title based on success
     const titleSpan = document.getElementById('sum-title');
@@ -889,14 +1453,34 @@ class VexillaApp {
     // Update highscore
     if (accuracy > this.state.quizHighscore) {
       this.state.quizHighscore = accuracy;
-      this.saveState();
+    }
+    if (this.quizMaxStreak > (this.state.bestQuizStreak || 0)) {
+      this.state.bestQuizStreak = this.quizMaxStreak;
     }
 
+    this.saveState();
+    this.updateDashboardStats();
     this.checkAchievements();
   }
 
   restartQuiz() {
     this.startQuiz();
+  }
+
+  retryMissedQuiz() {
+    const missed = new Set(this.quizMistakeCodes);
+    const flags = this.flags.filter((flag) => missed.has(flag.code));
+    if (!flags.length) return this.restartQuiz();
+    this.quizQuestions = this.shuffle([...flags]);
+    this.quizAnswerPool = [...this.flags];
+    this.currentQuizIndex = 0;
+    this.quizScore = 0;
+    this.quizStreak = 0;
+    this.quizMaxStreak = 0;
+    this.quizMistakeCodes = [];
+    document.getElementById('quiz-game-panel').style.display = 'flex';
+    document.getElementById('quiz-summary-panel').style.display = 'none';
+    this.loadQuizQuestion();
   }
 
   // --- MATCHING GAME ---
@@ -922,6 +1506,7 @@ class VexillaApp {
     this.matchHelpViews = 0;
     this.matchHelpedIds = new Set();
     this.matchDisqualifiedIds = new Set();
+    this.matchSessionFlags = selected.map((flag) => flag.code);
 
     // Create card structures
     this.matchCards = [];
@@ -1074,6 +1659,7 @@ class VexillaApp {
       const isCleanMatch = !this.matchDisqualifiedIds.has(firstId);
       if (isCleanMatch) {
         this.matchCleanMatches++;
+        this.recordFlagResult(firstId, 'correct');
       }
       this.pairsLeft--;
       this.updateMatchStats();
@@ -1094,6 +1680,8 @@ class VexillaApp {
       this.matchMistakes++;
       this.matchDisqualifiedIds.add(firstId);
       this.matchDisqualifiedIds.add(secondId);
+      this.recordFlagResult(firstId, 'incorrect');
+      this.recordFlagResult(secondId, 'incorrect');
       this.updateMatchStats();
 
       this.playAudioTone(180, 'sawtooth', 0.2); // Negative buzzer
@@ -1113,6 +1701,16 @@ class VexillaApp {
     summary.style.display = 'flex';
 
     const accuracy = this.matchTotalPairs > 0 ? Math.round((this.matchCleanMatches / this.matchTotalPairs) * 100) : 0;
+    const xpGained = this.awardXp(this.matchCleanMatches * 12 + (this.matchCleanMatches === this.matchTotalPairs ? 18 : 0));
+    this.state.activityCounts.match = (this.state.activityCounts.match || 0) + 1;
+    this.addRecentSession({
+      type: 'match',
+      title: 'Match game complete',
+      detail: `${this.matchCleanMatches} clean of ${this.matchTotalPairs}${this.matchHelpViews ? `, ${this.matchHelpViews} details used` : ''}`,
+      xp: xpGained,
+      accuracy,
+    });
+    this.saveState();
     document.getElementById('match-sum-score').textContent = `${this.matchCleanMatches} / ${this.matchTotalPairs}`;
 
     const subtitle = document.getElementById('match-sum-subtitle');
@@ -1123,7 +1721,14 @@ class VexillaApp {
       subtitle.textContent = `You made ${this.matchCleanMatches} clean match${this.matchCleanMatches === 1 ? '' : 'es'} out of ${this.matchTotalPairs} (${accuracy}%).${helpNote}`;
     }
 
+    this.renderSessionSummary(document.getElementById('match-session-summary'), [
+      { label: 'Explorer XP', value: `+${xpGained}` },
+      { label: 'Accuracy', value: `${accuracy}%` },
+      { label: 'Review queue', value: `${this.state.needReviewFlags.length}` },
+    ]);
+
     this.playSuccessChime();
+    this.updateDashboardStats();
     this.checkAchievements();
   }
 
@@ -1906,6 +2511,8 @@ class VexillaApp {
 
     // Track encyclopedia clicks for achievements
     this.viewedCountries.add(flag.code);
+    this.state.viewedFlagCodes = [...this.viewedCountries];
+    this.recordFlagDetailView(flag.code);
     if (this.viewedCountries.size >= 10) {
       this.checkAchievements();
     }
@@ -1937,6 +2544,15 @@ class VexillaApp {
   }
 
   // --- WORLD MAP ---
+  toggleMapChallenge() {
+    if (!this.mapRendered || !this.mapChallengeNext) {
+      this.switchView('map');
+      this.spawnToast('Preparing map challenge', 'The map needs a moment to finish loading first.', '◈');
+      return;
+    }
+    this.mapChallengeNext();
+  }
+
   normalizeCountryName(name) {
     return String(name || '')
       .toLowerCase()
@@ -2304,7 +2920,7 @@ class VexillaApp {
           const countryWidth = bounds[1][0] - bounds[0][0];
           const countryHeight = bounds[1][1] - bounds[0][1];
           const size = Math.max(30, Math.min(42, Math.min(countryWidth, countryHeight) * 0.35));
-          return { country, flag, x, y, width: size * 1.45, height: size };
+          return { country, flag, x, y, width: size * 1.45, height: size, polygonWidth: countryWidth, polygonHeight: countryHeight };
         })
         .filter(Boolean);
       const placedCodes = new Set(polygonMarkers.map((marker) => marker.flag.code));
@@ -2320,6 +2936,70 @@ class VexillaApp {
         .filter(Boolean);
       const markers = [...polygonMarkers, ...coordinateMarkers];
       const markerByCode = new Map(markers.map((marker) => [marker.flag.code, marker]));
+      const clickableChallengeCodes = new Set();
+      countryLayer.selectAll('.map-country').each((country) => {
+        const flag = getFlagForCountry(country);
+        if (flag) clickableChallengeCodes.add(flag.code);
+      });
+      const challengeFlags = polygonMarkers
+        .filter((marker) => marker.polygonWidth >= 10 && marker.polygonHeight >= 10)
+        .map((marker) => marker.flag)
+        .filter((flag) => clickableChallengeCodes.has(flag.code));
+      let mapChallengeFlag = null;
+      const challengePrompt = document.getElementById('map-challenge-prompt');
+      const challengeButton = document.getElementById('map-challenge-toggle');
+      const setMapChallengePrompt = (message = '') => {
+        if (challengePrompt) challengePrompt.textContent = message;
+        if (challengeButton) challengeButton.textContent = this.mapChallengeActive ? 'Stop challenge' : 'Map challenge';
+      };
+      const nextMapChallenge = () => {
+        if (!this.mapChallengeActive || !challengeFlags.length) return;
+        const choices = challengeFlags.filter((flag) => flag.code !== mapChallengeFlag?.code);
+        mapChallengeFlag = choices[Math.floor(Math.random() * choices.length)] || challengeFlags[0];
+        setMapChallengePrompt(`Find ${mapChallengeFlag.name}`);
+      };
+      const handleMapChallengeClick = (country) => {
+        if (!this.mapChallengeActive || !mapChallengeFlag) return;
+        const chosenFlag = getFlagForCountry(country);
+        if (!chosenFlag) return;
+        if (chosenFlag.code === mapChallengeFlag.code) {
+          this.mapChallengeScore += 1;
+          this.recordFlagResult(chosenFlag.code, 'correct');
+          this.state.activityCounts.map = (this.state.activityCounts.map || 0) + 1;
+          this.addRecentSession({
+            type: 'map',
+            title: 'Map challenge find',
+            detail: `Located ${chosenFlag.name} on the map`,
+            xp: this.awardXp(8),
+            accuracy: 100,
+          });
+          this.saveState();
+          this.playCorrectChime();
+          highlightCountryByFlagCode(chosenFlag.code);
+          setMapChallengePrompt(`Correct: ${chosenFlag.name}. Next...`);
+          window.setTimeout(nextMapChallenge, 700);
+        } else {
+          this.recordFlagResult(mapChallengeFlag.code, 'incorrect');
+          this.playFailureBuzz();
+          setMapChallengePrompt(`That is ${chosenFlag.name}. Find ${mapChallengeFlag.name}.`);
+        }
+      };
+      this.mapChallengeNext = () => {
+        this.mapChallengeActive = !this.mapChallengeActive;
+        if (this.mapChallengeActive) {
+          this.mapChallengeScore = 0;
+          nextMapChallenge();
+        } else {
+          mapChallengeFlag = null;
+          setMapChallengePrompt('');
+          clearCountryHighlight();
+        }
+      };
+      setMapChallengePrompt('');
+      countryLayer.selectAll('.map-country').on('click.map-challenge', (event, country) => {
+        if (d3svg.node().classList.contains('is-dragging')) return;
+        handleMapChallengeClick(country);
+      });
       const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
       const sortFlagsForNavigator = (flags) =>
         [...flags].sort((a, b) => {
@@ -2985,6 +3665,7 @@ class VexillaApp {
 
     const achievements = this.getAchievementsDefinition();
     this.updateAchievementSummary(achievements);
+    this.renderProgressInsights();
 
     let activeGroup = '';
     achievements.forEach((ach) => {
@@ -3003,6 +3684,8 @@ class VexillaApp {
       }
 
       const isUnlocked = this.state.unlockedAchievements.includes(ach.id);
+      const progress = this.getAchievementProgress(ach);
+      const progressPercent = progress.target > 0 ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : isUnlocked ? 100 : 0;
 
       const card = document.createElement('div');
       card.className = `achievement-card glass-panel ${isUnlocked ? '' : 'locked'}`;
@@ -3013,6 +3696,10 @@ class VexillaApp {
         <div class="achievement-details">
           <span class="achievement-title">${ach.title}</span>
           <span class="achievement-desc">${ach.desc}</span>
+          <div class="achievement-progress">
+            <div><span style="width:${progressPercent}%"></span></div>
+            <small>${isUnlocked ? 'Complete' : `${progress.current} / ${progress.target}`}</small>
+          </div>
         </div>
         <span class="achievement-status">${isUnlocked ? 'Unlocked' : 'Locked'}</span>
       `;
@@ -3042,6 +3729,55 @@ class VexillaApp {
 
     const barEl = document.getElementById('progress-achievements-bar');
     if (barEl) barEl.style.width = `${percent}%`;
+  }
+
+  getAchievementProgress(achievement) {
+    const learnedSet = new Set(this.state.learnedFlags);
+    const countDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty && learnedSet.has(flag.code)).length;
+    const totalDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty).length;
+    const countContinent = (continent) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length;
+    const totalContinent = (continent) => this.flags.filter((flag) => flag.continent === continent).length;
+    const binary = () => ({ current: achievement.check() ? 1 : 0, target: 1 });
+    const progressById = {
+      first_steps: [this.state.learnedFlags.length, 5],
+      getting_warm: [this.state.learnedFlags.length, 10],
+      globetrotter: [this.state.learnedFlags.length, 25],
+      fifty_flags: [this.state.learnedFlags.length, 50],
+      century_club: [this.state.learnedFlags.length, 100],
+      nearly_worldly: [this.state.learnedFlags.length, 150],
+      vexillology_master: [this.state.learnedFlags.length, this.flags.length],
+      beginner_sweep: [countDifficulty(1), totalDifficulty(1)],
+      intermediate_sweep: [countDifficulty(2), totalDifficulty(2)],
+      expert_sweep: [countDifficulty(3), totalDifficulty(3)],
+      europe_starter: [countContinent('Europe'), 10],
+      asia_starter: [countContinent('Asia'), 10],
+      americas_starter: [countContinent('Americas'), 10],
+      africa_starter: [countContinent('Africa'), 10],
+      oceania_starter: [countContinent('Oceania'), 5],
+      europe_complete: [countContinent('Europe'), totalContinent('Europe')],
+      asia_complete: [countContinent('Asia'), totalContinent('Asia')],
+      americas_complete: [countContinent('Americas'), totalContinent('Americas')],
+      africa_complete: [countContinent('Africa'), totalContinent('Africa')],
+      oceania_complete: [countContinent('Oceania'), totalContinent('Oceania')],
+      quiz_50: [this.state.quizHighscore, 50],
+      quiz_80: [this.state.quizHighscore, 80],
+      perfect_quiz: [this.state.quizHighscore, 100],
+      quiz_hot_streak: [this.state.bestQuizStreak || this.quizMaxStreak, 5],
+      quiz_flawless_run: [this.state.bestQuizStreak || this.quizMaxStreak, 10],
+      streak_3: [this.state.learningStreak || 0, 3],
+      streak_7: [this.state.learningStreak || 0, 7],
+      streak_14: [this.state.learningStreak || 0, 14],
+      streak_30: [this.state.learningStreak || 0, 30],
+      explorer: [this.viewedCountries.size, 10],
+      atlas_scholar: [this.viewedCountries.size, 25],
+      atlas_cartographer: [this.viewedCountries.size, 50],
+      review_master: [this.state.needReviewFlags.length, 5],
+      review_stack: [this.state.needReviewFlags.length, 15],
+      clean_slate: [this.state.learnedFlags.length, 25],
+    };
+    const values = progressById[achievement.id];
+    if (!values) return binary();
+    return { current: Math.min(values[0], values[1]), target: Math.max(1, values[1]) };
   }
 
   getActiveUnlockedAchievementIds(achievements = this.getAchievementsDefinition()) {
@@ -3235,14 +3971,14 @@ class VexillaApp {
         title: 'Hot Streak',
         desc: 'Answer 5 quiz questions in a row correctly.',
         icon: '🔥',
-        check: () => this.quizMaxStreak >= 5,
+        check: () => (this.state.bestQuizStreak || this.quizMaxStreak) >= 5,
       },
       {
         id: 'quiz_flawless_run',
         title: 'Flawless Run',
         desc: 'Answer 10 quiz questions in a row correctly.',
         icon: '💎',
-        check: () => this.quizMaxStreak >= 10,
+        check: () => (this.state.bestQuizStreak || this.quizMaxStreak) >= 10,
       },
       {
         id: 'match_clean_sweep',
@@ -3277,28 +4013,28 @@ class VexillaApp {
         title: 'Dedicated Learner',
         desc: 'Keep a daily learning streak of 3 days or more.',
         icon: '🔥',
-        check: () => this.state.streak >= 3,
+        check: () => (this.state.learningStreak || 0) >= 3,
       },
       {
         id: 'streak_7',
         title: 'Week Warrior',
         desc: 'Keep a daily learning streak of 7 days or more.',
         icon: '📅',
-        check: () => this.state.streak >= 7,
+        check: () => (this.state.learningStreak || 0) >= 7,
       },
       {
         id: 'streak_14',
         title: 'Two-Week Traveler',
         desc: 'Keep a daily learning streak of 14 days or more.',
         icon: '🧳',
-        check: () => this.state.streak >= 14,
+        check: () => (this.state.learningStreak || 0) >= 14,
       },
       {
         id: 'streak_30',
         title: 'Monthly Master',
         desc: 'Keep a daily learning streak of 30 days or more.',
         icon: '🏅',
-        check: () => this.state.streak >= 30,
+        check: () => (this.state.learningStreak || 0) >= 30,
       },
       {
         id: 'explorer',
