@@ -3167,6 +3167,10 @@ input:checked + .slider:before {
     content: 'Progress';
   }
 
+  #nav-settings button::after {
+    content: 'Settings';
+  }
+
   .nav-item button:hover svg {
     transform: none;
   }
