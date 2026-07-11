@@ -68,6 +68,7 @@ class VexillaApp {
     this.mapDataUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
     this.flagImageCache = new Map();
     this.mapLocatorContext = null;
+    this.mapLocatorContextPromise = null;
     this.mapChallengeNext = null;
     this.mapChallengeActive = false;
     this.mapChallengeScore = 0;
@@ -691,10 +692,11 @@ class VexillaApp {
       continentOrder.forEach((continent) => {
         const flags = this.flags.filter((flag) => flag.continent === continent);
         const mastered = flags.filter((flag) => this.state.learnedFlags.includes(flag.code)).length;
+        const percent = flags.length ? Math.round((mastered / flags.length) * 100) : 0;
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'continent-progress-row';
-        row.innerHTML = `<span>${continent}</span><strong>${mastered} / ${flags.length}</strong><i><b style="width:${flags.length ? Math.round((mastered / flags.length) * 100) : 0}%"></b></i>`;
+        row.innerHTML = `<span>${continent}</span><strong>${mastered} / ${flags.length}</strong><i><b style="width:${percent}%"></b></i>`;
         row.onclick = () => this.startContinentPath(continent);
         continentProgress.appendChild(row);
       });
@@ -833,6 +835,8 @@ class VexillaApp {
 
     const mnemonicVal = document.getElementById('card-mnemonic');
     if (mnemonicVal) mnemonicVal.textContent = activeFlag.fact;
+
+    this.renderFlashcardLocatorMap(activeFlag);
 
     // Update progress bar
     const totalCount = this.currentDeck.length;
@@ -2751,9 +2755,140 @@ class VexillaApp {
     this.getCachedFlagImageSrc(code, width);
   }
 
+  async ensureMapLocatorContext() {
+    if (this.mapLocatorContext) return this.mapLocatorContext;
+    if (this.mapLocatorContextPromise) return this.mapLocatorContextPromise;
+    if (!window.d3 || !window.topojson) return null;
+
+    this.mapLocatorContextPromise = (async () => {
+      const world = await window.d3.json(this.mapDataUrl);
+      const countries = window.topojson.feature(world, world.objects.countries).features;
+      const width = 1600;
+      const height = 900;
+      const projection = window.d3.geoMercator().fitExtent(
+        [
+          [40, 35],
+          [1560, 820],
+        ],
+        {
+          type: 'FeatureCollection',
+          features: countries,
+        },
+      );
+      const path = window.d3.geoPath(projection);
+      const flagLookup = new Map(this.flags.map((flag) => [this.normalizeCountryName(flag.name), flag]));
+      const aliases = this.getMapNameAliases();
+      const markerOverrides = this.getMapMarkerOverrides();
+      const locatorCoordinates = this.getCountryLocatorCoordinates();
+      const getFlagForCountry = (country) => {
+        const mapName = country.properties?.name || '';
+        return this.getFlagByMapName(mapName, flagLookup, aliases);
+      };
+      const polygonMarkers = countries
+        .map((country) => {
+          const flag = getFlagForCountry(country);
+          if (!flag) return null;
+          const overrideCoords = markerOverrides[flag.code];
+          const [x, y] = overrideCoords ? projection(overrideCoords) : path.centroid(country);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+          return { country, flag, x, y };
+        })
+        .filter(Boolean);
+      const placedCodes = new Set(polygonMarkers.map((marker) => marker.flag.code));
+      const coordinateMarkers = this.flags
+        .filter((flag) => !placedCodes.has(flag.code))
+        .map((flag) => {
+          const coords = locatorCoordinates[flag.code] || markerOverrides[flag.code];
+          if (!coords) return null;
+          const [x, y] = projection(coords);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+          return { country: null, flag, x, y, isCoordinateMarker: true };
+        })
+        .filter(Boolean);
+      const markerByCode = new Map([...polygonMarkers, ...coordinateMarkers].map((marker) => [marker.flag.code, marker]));
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const fitLocatorViewBox = (centerX, centerY, boxWidth, boxHeight) => {
+        const viewWidth = Math.min(width, boxWidth);
+        const viewHeight = Math.min(height, boxHeight);
+        return {
+          x: clamp(centerX - viewWidth / 2, 0, width - viewWidth),
+          y: clamp(centerY - viewHeight / 2, 0, height - viewHeight),
+          width: viewWidth,
+          height: viewHeight,
+        };
+      };
+      const getBoundsViewBox = ([west, north, east, south], padding = 55) => {
+        const corners = [projection([west, north]), projection([east, south])];
+        const xMin = Math.min(corners[0][0], corners[1][0]);
+        const xMax = Math.max(corners[0][0], corners[1][0]);
+        const yMin = Math.min(corners[0][1], corners[1][1]);
+        const yMax = Math.max(corners[0][1], corners[1][1]);
+        const centerX = (xMin + xMax) / 2;
+        const centerY = (yMin + yMax) / 2;
+        return fitLocatorViewBox(centerX, centerY, xMax - xMin + padding * 2, yMax - yMin + padding * 2);
+      };
+      const getLocatorViewBox = (flag, locatorX, locatorY) => {
+        const islandCodes = new Set(['ag', 'bb', 'bs', 'cv', 'dm', 'fm', 'gd', 'ht', 'ki', 'km', 'kn', 'lc', 'mh', 'mt', 'mv', 'mu', 'nr', 'pw', 'sc', 'st', 'to', 'tt', 'tv', 'vc', 'ws']);
+        if (flag.continent === 'Oceania' || islandCodes.has(flag.code)) {
+          return fitLocatorViewBox(locatorX, locatorY, 260, 146);
+        }
+
+        const continentBounds = {
+          Africa: [-20, 38, 55, -36],
+          Americas: [-170, 72, -30, -56],
+          Asia: [25, 82, 150, -12],
+          Europe: [-25, 72, 45, 34],
+        };
+
+        if (continentBounds[flag.continent]) {
+          const continentView = getBoundsViewBox(continentBounds[flag.continent]);
+          return fitLocatorViewBox(locatorX, locatorY, continentView.width * 0.42, continentView.height * 0.42);
+        }
+
+        return fitLocatorViewBox(locatorX, locatorY, 320, 180);
+      };
+
+      this.mapLocatorContext = {
+        countries,
+        width,
+        height,
+        path,
+        projection,
+        markerOverrides,
+        locatorCoordinates,
+        markerByCode,
+        getLocatorViewBox,
+      };
+      return this.mapLocatorContext;
+    })().catch((error) => {
+      console.error('Failed to build map locator context:', error);
+      this.mapLocatorContextPromise = null;
+      return null;
+    });
+
+    return this.mapLocatorContextPromise;
+  }
+
+  async renderFlashcardLocatorMap(flag) {
+    const container = document.getElementById('card-locator-map');
+    const panel = document.getElementById('card-locator-panel');
+    if (!container || !flag) return;
+    if (panel) panel.hidden = true;
+    container.hidden = true;
+    container.textContent = '';
+
+    const context = await this.ensureMapLocatorContext();
+    const activeFlag = this.currentDeck[this.currentDeckIndex];
+    if (!context || activeFlag?.code !== flag.code) return;
+
+    this.renderCountryLocatorMap(container, flag, { compact: true, interactive: true });
+    container.classList.add('flashcard-locator-map');
+    if (panel && !container.hidden) panel.hidden = false;
+  }
+
   renderCountryLocatorMap(container, flag, options = {}) {
     if (!container) return;
-    const { compact = false, popover = false } = options;
+    const { compact = false, popover = false, interactive = false } = options;
     container.textContent = '';
     container.className = ['flag-locator-map', compact ? 'compact' : '', popover ? 'popover' : ''].filter(Boolean).join(' ');
 
@@ -2775,6 +2910,30 @@ class VexillaApp {
     const [locatorX, locatorY] = locatorPoint;
     const viewBox = getLocatorViewBox(flag, locatorX, locatorY);
     const dotRadius = Math.max(3.5, Math.min(12, viewBox.width * 0.018));
+
+    let locatorZoomValue = null;
+    if (interactive) {
+      const controls = document.createElement('div');
+      controls.className = 'flashcard-locator-controls';
+
+      const createButton = (label, text) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'map-unplaced-locator-btn';
+        button.setAttribute('aria-label', label);
+        button.textContent = text;
+        return button;
+      };
+
+      const zoomOutButton = createButton('Zoom flashcard location map out', '-');
+      const resetButton = createButton('Reset flashcard location map zoom', '0');
+      const zoomInButton = createButton('Zoom flashcard location map in', '+');
+      locatorZoomValue = document.createElement('span');
+      locatorZoomValue.className = 'map-unplaced-locator-zoom';
+      locatorZoomValue.textContent = '100%';
+      controls.append(zoomOutButton, resetButton, zoomInButton, locatorZoomValue);
+      container.appendChild(controls);
+    }
 
     const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     locatorSvg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
@@ -2810,6 +2969,102 @@ class VexillaApp {
     locatorSvg.appendChild(locatorRing);
 
     container.appendChild(locatorSvg);
+
+    if (interactive && locatorZoomValue) {
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      let currentViewBox = { ...viewBox };
+      let zoomStep = 0;
+      let drag = null;
+
+      const setViewBox = (centerX, centerY, viewWidth, viewHeight) => {
+        const nextWidth = Math.min(width, viewWidth);
+        const nextHeight = Math.min(height, viewHeight);
+        currentViewBox = {
+          x: clamp(centerX - nextWidth / 2, 0, width - nextWidth),
+          y: clamp(centerY - nextHeight / 2, 0, height - nextHeight),
+          width: nextWidth,
+          height: nextHeight,
+        };
+        const nextDotRadius = Math.max(3.5, Math.min(12, currentViewBox.width * 0.018));
+        locatorSvg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
+        locatorDot.setAttribute('r', nextDotRadius);
+        locatorRing.setAttribute('r', nextDotRadius * 2.4);
+      };
+
+      const applyZoom = (nextStep) => {
+        zoomStep = clamp(nextStep, -3, 5);
+        const zoomFactor = Math.pow(1.45, zoomStep);
+        const centerX = currentViewBox.x + currentViewBox.width / 2;
+        const centerY = currentViewBox.y + currentViewBox.height / 2;
+        setViewBox(centerX, centerY, viewBox.width / zoomFactor, viewBox.height / zoomFactor);
+        locatorZoomValue.textContent = `${Math.round(zoomFactor * 100)}%`;
+      };
+
+      const controlButtons = container.querySelectorAll('.map-unplaced-locator-btn');
+      controlButtons[0]?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        applyZoom(zoomStep - 1);
+      });
+      controlButtons[1]?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        currentViewBox = { ...viewBox };
+        zoomStep = 0;
+        setViewBox(viewBox.x + viewBox.width / 2, viewBox.y + viewBox.height / 2, viewBox.width, viewBox.height);
+        locatorZoomValue.textContent = '100%';
+      });
+      controlButtons[2]?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        applyZoom(zoomStep + 1);
+      });
+
+      locatorSvg.addEventListener(
+        'wheel',
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const zoomDirection = event.deltaY > 0 ? -1 : 1;
+          applyZoom(zoomStep + zoomDirection);
+        },
+        { passive: false },
+      );
+
+      locatorSvg.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        const bounds = locatorSvg.getBoundingClientRect();
+        drag = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          bounds,
+          viewBox: { ...currentViewBox },
+        };
+        locatorSvg.setPointerCapture(event.pointerId);
+        locatorSvg.classList.add('is-panning');
+      });
+
+      locatorSvg.addEventListener('pointermove', (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        const dx = ((event.clientX - drag.startX) / drag.bounds.width) * drag.viewBox.width;
+        const dy = ((event.clientY - drag.startY) / drag.bounds.height) * drag.viewBox.height;
+        setViewBox(drag.viewBox.x + drag.viewBox.width / 2 - dx, drag.viewBox.y + drag.viewBox.height / 2 - dy, drag.viewBox.width, drag.viewBox.height);
+      });
+
+      const endDrag = (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        drag = null;
+        locatorSvg.classList.remove('is-panning');
+        if (locatorSvg.hasPointerCapture(event.pointerId)) {
+          locatorSvg.releasePointerCapture(event.pointerId);
+        }
+      };
+
+      locatorSvg.addEventListener('pointerup', endDrag);
+      locatorSvg.addEventListener('pointercancel', endDrag);
+      locatorSvg.addEventListener('click', (event) => event.stopPropagation());
+    }
   }
 
   async renderWorldMap() {
