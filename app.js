@@ -1368,6 +1368,12 @@ class VexillaApp {
         nextButton.innerHTML = '<span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
         nextButton.onclick = () => this.advanceQuizQuestion();
         feedback.append(copy, nextButton);
+        if (window.matchMedia('(max-width: 768px)').matches) {
+          window.requestAnimationFrame(() => {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            feedback.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+          });
+        }
       }
     }
 
