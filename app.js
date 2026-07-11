@@ -528,6 +528,8 @@ class VexillaApp {
     // Deactivate all sidebar items
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach((n) => n.classList.remove('active'));
+    const settingsShortcut = document.getElementById('settings-shortcut');
+    if (settingsShortcut) settingsShortcut.classList.remove('active');
 
     // Activate target view
     const targetView = document.getElementById(`${viewId}-view`);
@@ -540,6 +542,7 @@ class VexillaApp {
     // Activate target sidebar button
     const targetNav = document.getElementById(`nav-${viewId}`);
     if (targetNav) targetNav.classList.add('active');
+    if (viewId === 'settings' && settingsShortcut) settingsShortcut.classList.add('active');
 
     // Screen-specific updates
     if (viewId === 'dashboard') {
@@ -4153,22 +4156,6 @@ window.app = new VexillaApp();
 // Wait for DOM to wire events
 document.addEventListener('DOMContentLoaded', () => {
   window.app.init();
-
-  // Wire theme toggle click
-  const themeToggle = document.getElementById('theme-toggle');
-  if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-      window.app.toggleTheme();
-    });
-  }
-
-  // Wire sound toggle click
-  const soundToggle = document.getElementById('sound-toggle');
-  if (soundToggle) {
-    soundToggle.addEventListener('click', () => {
-      window.app.toggleSound();
-    });
-  }
 
   // Wire logo link to dashboard click
   const logo = document.getElementById('logo-link');
