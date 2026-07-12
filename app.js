@@ -654,6 +654,8 @@ class VexillaApp {
     const activeUnlockedCount = this.getActiveUnlockedAchievementIds(achievements).length;
     if (achievementSpan) achievementSpan.textContent = `${activeUnlockedCount} / ${achievements.length}`;
 
+    this.renderDashboardLearningPulse();
+
     const dueFlags = this.getDueFlags();
     const dueEl = document.getElementById('today-due-count');
     if (dueEl) dueEl.textContent = `${dueFlags.length} due`;
@@ -720,6 +722,89 @@ class VexillaApp {
       const countText = document.getElementById(`lvl${lvl}-count-text`);
       if (countText) countText.textContent = `${lvlFlagsLearned} / ${lvlFlagsTotal} flags`;
     });
+  }
+
+  getDashboardActivityDays() {
+    const dayMs = 86400000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayMap = new Map();
+
+    const toDayKey = (dateValue) => {
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return '';
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString().slice(0, 10);
+    };
+
+    for (let offset = 27; offset >= 0; offset--) {
+      const date = new Date(today.getTime() - offset * dayMs);
+      const key = date.toISOString().slice(0, 10);
+      dayMap.set(key, { key, label: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), score: 0, xp: 0, sessions: 0 });
+    }
+
+    (this.state.recentSessions || []).forEach((session) => {
+      const key = toDayKey(session.date);
+      const day = dayMap.get(key);
+      if (!day) return;
+      day.sessions += 1;
+      day.xp += Math.max(0, Math.round(Number(session.xp) || 0));
+      day.score += 2;
+    });
+
+    Object.values(this.state.flagProgress || {}).forEach((progress) => {
+      [progress.lastStudiedAt, progress.lastDetailViewedAt].forEach((dateValue) => {
+        const key = toDayKey(dateValue);
+        const day = dayMap.get(key);
+        if (day) day.score += 1;
+      });
+    });
+
+    return [...dayMap.values()];
+  }
+
+  renderDashboardLearningPulse() {
+    const grid = document.getElementById('dashboard-activity-grid');
+    const sparkline = document.getElementById('dashboard-xp-sparkline');
+    const summary = document.getElementById('learning-pulse-summary');
+    if (!grid || !sparkline || !summary) return;
+
+    const days = this.getDashboardActivityDays();
+    const maxScore = Math.max(1, ...days.map((day) => day.score));
+    const maxXp = Math.max(1, ...days.map((day) => day.xp));
+    const activeDays = days.filter((day) => day.score > 0).length;
+    const totalXp = days.reduce((sum, day) => sum + day.xp, 0);
+    const lastActiveDay = [...days].reverse().find((day) => day.score > 0);
+
+    grid.innerHTML = '';
+    days.forEach((day) => {
+      const cell = document.createElement('span');
+      const level = day.score === 0 ? 0 : Math.max(1, Math.ceil((day.score / maxScore) * 4));
+      cell.className = 'activity-cell';
+      cell.setAttribute('data-level', level);
+      cell.title = `${day.label}: ${day.sessions} session${day.sessions === 1 ? '' : 's'}${day.xp ? `, ${day.xp} XP` : ''}`;
+      grid.appendChild(cell);
+    });
+
+    const points = days
+      .map((day, index) => {
+        const x = days.length === 1 ? 0 : (index / (days.length - 1)) * 120;
+        const y = 32 - (day.xp / maxXp) * 26;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+
+    sparkline.innerHTML = `
+      <path class="xp-sparkline-base" d="M0 32H120"></path>
+      <polyline class="xp-sparkline-line" points="${points}"></polyline>
+    `;
+
+    if (activeDays > 0) {
+      const lastLabel = lastActiveDay ? ` Last activity: ${lastActiveDay.label}.` : '';
+      summary.textContent = `${activeDays} active day${activeDays === 1 ? '' : 's'} in 4 weeks • ${totalXp} XP earned.${lastLabel}`;
+    } else {
+      summary.textContent = 'Complete a quiz, flashcard deck, or match game to start lighting up the grid.';
+    }
   }
 
   // --- FLASHCARDS MODE ---
@@ -1685,7 +1770,8 @@ class VexillaApp {
 
       // Check win condition
       if (this.pairsLeft === 0) {
-        setTimeout(() => this.showMatchGameComplete(), 2000);
+        const finalMatchRevealDelayMs = 1100;
+        setTimeout(() => this.showMatchGameComplete(), finalMatchRevealDelayMs);
       }
     } else {
       // MISMATCH
