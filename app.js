@@ -19,6 +19,8 @@ class VexillaApp {
     this.flashcardAdvanceTimeout = null;
     this.isAdvancingFlashcard = false;
     this.activeLevel = 1;
+    this.lastStudyLevel = 1;
+    this.flashcardDeckMode = 'learn';
     this.flashcardLearnedThisSession = 0;
     this.flashcardReviewThisSession = 0;
 
@@ -550,6 +552,7 @@ class VexillaApp {
       this.updateDashboardStats();
     } else if (viewId === 'flashcards') {
       this.updateContinentControls('flashcards');
+      this.updateFlashcardDeckControls();
       if (this.currentDeck.length === 0 || this.currentDeckIndex >= this.currentDeck.length) {
         this.startLevel(this.activeLevel || 1);
         return;
@@ -810,6 +813,8 @@ class VexillaApp {
   // --- FLASHCARDS MODE ---
   startLevel(lvl) {
     this.activeLevel = lvl;
+    this.lastStudyLevel = lvl || this.lastStudyLevel || 1;
+    this.flashcardDeckMode = 'learn';
 
     // Filter flags for level and selected continents
     const lvlFlags = this.filterBySelectedContinents(
@@ -844,6 +849,7 @@ class VexillaApp {
       studyTitle.textContent = `Study Deck: Level ${lvl} - ${difficultyNames[lvl - 1]}`;
     }
     this.updateContinentControls('flashcards');
+    this.updateFlashcardDeckControls();
 
     this.switchView('flashcards');
   }
@@ -1018,17 +1024,44 @@ class VexillaApp {
   startReviewDeck(kind = 'flagged') {
     const reviewCodes = kind === 'due' ? this.getDueFlags().map((flag) => flag.code) : this.state.needReviewFlags;
     const selectedCodes = new Set(reviewCodes);
-    const deck = this.flags.filter((flag) => selectedCodes.has(flag.code));
+    const deck = this.filterBySelectedContinents(
+      this.flags.filter((flag) => selectedCodes.has(flag.code)),
+      this.activeFlashcardContinents,
+    );
     if (!deck.length) {
-      this.spawnToast('Review queue is clear', 'You have no flags waiting for review right now.', '✓');
+      const poolText = this.activeFlashcardContinents.includes('all') ? '' : ' in this study pool';
+      this.spawnToast('Review queue is clear', `You have no flags waiting for review${poolText} right now.`, '✓');
       return;
     }
     this.currentDeck = this.shuffle([...deck]);
     this.currentDeckIndex = 0;
-    this.activeLevel = 0;
+    this.flashcardDeckMode = kind === 'due' ? 'due' : 'flagged';
+    this.flashcardLearnedThisSession = 0;
+    this.flashcardReviewThisSession = 0;
+    const summary = document.getElementById('flashcard-summary-panel');
+    if (summary) summary.style.display = 'none';
+    const studyFlow = document.querySelector('.study-flow-container');
+    if (studyFlow) studyFlow.style.display = 'flex';
     const studyTitle = document.getElementById('study-level-title');
     if (studyTitle) studyTitle.textContent = kind === 'due' ? 'Review Deck: Due Today' : 'Review Deck: Needs Review';
+    this.updateContinentControls('flashcards');
+    this.updateFlashcardDeckControls();
     this.switchView('flashcards');
+  }
+
+  selectFlashcardDeckMode(element) {
+    const mode = element.getAttribute('data-flashcard-deck') || 'learn';
+    if (mode === 'learn') {
+      this.startLevel(this.lastStudyLevel || this.activeLevel || 1);
+    } else {
+      this.startReviewDeck(mode);
+    }
+  }
+
+  updateFlashcardDeckControls() {
+    document.querySelectorAll('.flashcard-deck-tag').forEach((tag) => {
+      tag.classList.toggle('active', tag.getAttribute('data-flashcard-deck') === this.flashcardDeckMode);
+    });
   }
 
   // --- QUIZ ENGINE ---
@@ -1078,7 +1111,11 @@ class VexillaApp {
     if (mode === 'quiz') {
       this.startQuiz();
     } else if (mode === 'flashcards') {
-      this.startLevel(this.activeLevel || 1);
+      if (this.flashcardDeckMode === 'due' || this.flashcardDeckMode === 'flagged') {
+        this.startReviewDeck(this.flashcardDeckMode);
+      } else {
+        this.startLevel(this.lastStudyLevel || this.activeLevel || 1);
+      }
     } else if (mode === 'match') {
       this.startMatchGame();
     }

@@ -178,29 +178,31 @@
             </div>
           </div>
 
-          <section class="today-plan glass-panel" aria-labelledby="today-plan-title">
-            <div class="today-plan-copy">
-              <span class="section-kicker">Today&apos;s learning plan</span>
-              <h2 id="today-plan-title">Continue your flag journey</h2>
-              <p id="today-plan-copy">A focused session is ready when you are.</p>
-            </div>
-            <div class="today-plan-actions">
-              <span class="today-due-chip" id="today-due-count">0 due</span>
-              <button class="level-btn" id="today-plan-button" type="button">Start learning</button>
-            </div>
-          </section>
+          <div class="dashboard-focus-row">
+            <section class="today-plan glass-panel" aria-labelledby="today-plan-title">
+              <div class="today-plan-copy">
+                <span class="section-kicker">Today&apos;s learning plan</span>
+                <h2 id="today-plan-title">Continue your flag journey</h2>
+                <p id="today-plan-copy">A focused session is ready when you are.</p>
+              </div>
+              <div class="today-plan-actions">
+                <span class="today-due-chip" id="today-due-count">0 due</span>
+                <button class="level-btn" id="today-plan-button" type="button">Start learning</button>
+              </div>
+            </section>
 
-          <section class="learning-pulse glass-panel" aria-labelledby="learning-pulse-title">
-            <div class="learning-pulse-copy">
-              <span class="section-kicker">Learning pulse</span>
-              <h2 id="learning-pulse-title">Your last 4 weeks</h2>
-              <p id="learning-pulse-summary">Build a few sessions to light this up.</p>
-            </div>
-            <div class="learning-pulse-visuals" aria-label="Recent learning activity">
-              <div class="activity-grid" id="dashboard-activity-grid"></div>
-              <svg class="xp-sparkline" id="dashboard-xp-sparkline" viewBox="0 0 120 36" role="img" aria-label="XP trend over the last 4 weeks"></svg>
-            </div>
-          </section>
+            <section class="learning-pulse glass-panel" aria-labelledby="learning-pulse-title">
+              <div class="learning-pulse-copy">
+                <span class="section-kicker">Learning pulse</span>
+                <h2 id="learning-pulse-title">Your last 4 weeks</h2>
+                <p id="learning-pulse-summary">Build a few sessions to light this up.</p>
+              </div>
+              <div class="learning-pulse-visuals" aria-label="Recent learning activity">
+                <div class="activity-grid" id="dashboard-activity-grid"></div>
+                <svg class="xp-sparkline" id="dashboard-xp-sparkline" viewBox="0 0 120 36" role="img" aria-label="XP trend over the last 4 weeks"></svg>
+              </div>
+            </section>
+          </div>
 
           <section class="continent-path-panel" aria-labelledby="continent-path-title">
             <div class="section-heading-row">
@@ -382,20 +384,31 @@
             </div>
           </header>
 
-          <div class="mode-filter-panel glass-panel">
-            <div class="filter-group">
-              <span class="filter-label">Continent</span>
-              <button class="filter-tag flashcards-continent-tag active" data-continent="all" onclick="app.selectFlashcardContinent(this, event)">All</button>
-              <button class="filter-tag flashcards-continent-tag" data-continent="Europe" onclick="app.selectFlashcardContinent(this, event)">Europe</button>
-              <button class="filter-tag flashcards-continent-tag" data-continent="Asia" onclick="app.selectFlashcardContinent(this, event)">Asia</button>
-              <button class="filter-tag flashcards-continent-tag" data-continent="Americas" onclick="app.selectFlashcardContinent(this, event)">Americas</button>
-              <button class="filter-tag flashcards-continent-tag" data-continent="Africa" onclick="app.selectFlashcardContinent(this, event)">Africa</button>
-              <button class="filter-tag flashcards-continent-tag" data-continent="Oceania" onclick="app.selectFlashcardContinent(this, event)">Oceania</button>
+          <div class="mode-filter-panel flashcard-setup-panel glass-panel">
+            <div class="flashcard-setup-section flashcard-mode-section" aria-label="Flashcard setup">
+              <div class="quiz-config-group">
+                <span class="filter-label">Deck type</span>
+                <div class="segmented-control flashcard-segmented-control" role="group" aria-label="Deck type">
+                  <button class="filter-tag flashcard-deck-tag active" data-flashcard-deck="learn" onclick="app.selectFlashcardDeckMode(this)">Learn new</button>
+                  <button class="filter-tag flashcard-deck-tag" data-flashcard-deck="flagged" onclick="app.selectFlashcardDeckMode(this)">Review queue</button>
+                  <button class="filter-tag flashcard-deck-tag" data-flashcard-deck="due" onclick="app.selectFlashcardDeckMode(this)">Due today</button>
+                </div>
+              </div>
             </div>
-            <p class="filter-hint">Click a continent to switch study decks. Hold Ctrl while clicking to combine continents.</p>
-            <div class="deck-shortcuts">
-              <button class="secondary-btn compact-btn" type="button" onclick="app.startReviewDeck('flagged')">Review queue</button>
-              <button class="secondary-btn compact-btn" type="button" onclick="app.startReviewDeck('due')">Due today</button>
+
+            <div class="flashcard-setup-section flashcard-continent-section">
+              <div class="quiz-setup-heading">
+                <span class="filter-label">Study pool</span>
+                <p class="filter-hint">Click to switch. Hold Ctrl to combine continents.</p>
+              </div>
+              <div class="filter-group flashcard-continent-options">
+                <button class="filter-tag flashcards-continent-tag active" data-continent="all" onclick="app.selectFlashcardContinent(this, event)">All</button>
+                <button class="filter-tag flashcards-continent-tag" data-continent="Europe" onclick="app.selectFlashcardContinent(this, event)">Europe</button>
+                <button class="filter-tag flashcards-continent-tag" data-continent="Asia" onclick="app.selectFlashcardContinent(this, event)">Asia</button>
+                <button class="filter-tag flashcards-continent-tag" data-continent="Americas" onclick="app.selectFlashcardContinent(this, event)">Americas</button>
+                <button class="filter-tag flashcards-continent-tag" data-continent="Africa" onclick="app.selectFlashcardContinent(this, event)">Africa</button>
+                <button class="filter-tag flashcards-continent-tag" data-continent="Oceania" onclick="app.selectFlashcardContinent(this, event)">Oceania</button>
+              </div>
             </div>
           </div>
 
@@ -502,31 +515,40 @@
             </div>
           </header>
 
-          <div class="mode-filter-panel glass-panel">
-            <div class="filter-group">
-              <span class="filter-label">Continent</span>
-              <button class="filter-tag quiz-continent-tag active" data-continent="all" onclick="app.selectQuizContinent(this, event)">All</button>
-              <button class="filter-tag quiz-continent-tag" data-continent="Europe" onclick="app.selectQuizContinent(this, event)">Europe</button>
-              <button class="filter-tag quiz-continent-tag" data-continent="Asia" onclick="app.selectQuizContinent(this, event)">Asia</button>
-              <button class="filter-tag quiz-continent-tag" data-continent="Americas" onclick="app.selectQuizContinent(this, event)">Americas</button>
-              <button class="filter-tag quiz-continent-tag" data-continent="Africa" onclick="app.selectQuizContinent(this, event)">Africa</button>
-              <button class="filter-tag quiz-continent-tag" data-continent="Oceania" onclick="app.selectQuizContinent(this, event)">Oceania</button>
-            </div>
-            <p class="filter-hint">Click a continent to switch quiz pools. Hold Ctrl while clicking to combine continents.</p>
-            <div class="quiz-config-row" aria-label="Quiz setup">
+          <div class="mode-filter-panel quiz-setup-panel glass-panel">
+            <div class="quiz-setup-section quiz-mode-section" aria-label="Quiz setup">
               <div class="quiz-config-group">
-                <span class="filter-label">Challenge</span>
-                <button class="filter-tag quiz-mode-tag active" data-quiz-mode="flag-country" onclick="app.selectQuizMode(this)">Flag to Country</button>
-                <button class="filter-tag quiz-mode-tag" data-quiz-mode="country-flag" onclick="app.selectQuizMode(this)">Country to Flag</button>
-                <button class="filter-tag quiz-mode-tag" data-quiz-mode="flag-capital" onclick="app.selectQuizMode(this)">Flag to Capital</button>
-                <button class="filter-tag quiz-mode-tag" data-quiz-mode="capital-flag" onclick="app.selectQuizMode(this)">Capital to Flag</button>
+                <span class="filter-label">Question type</span>
+                <div class="segmented-control quiz-segmented-control" role="group" aria-label="Question type">
+                  <button class="filter-tag quiz-mode-tag active" data-quiz-mode="flag-country" onclick="app.selectQuizMode(this)">Flag to Country</button>
+                  <button class="filter-tag quiz-mode-tag" data-quiz-mode="country-flag" onclick="app.selectQuizMode(this)">Country to Flag</button>
+                  <button class="filter-tag quiz-mode-tag" data-quiz-mode="flag-capital" onclick="app.selectQuizMode(this)">Flag to Capital</button>
+                  <button class="filter-tag quiz-mode-tag" data-quiz-mode="capital-flag" onclick="app.selectQuizMode(this)">Capital to Flag</button>
+                </div>
               </div>
               <div class="quiz-config-group">
                 <span class="filter-label">Practice</span>
-                <button class="filter-tag quiz-pool-tag active" data-quiz-pool="all" onclick="app.selectQuizPool(this)">All flags</button>
-                <button class="filter-tag quiz-pool-tag" data-quiz-pool="review" onclick="app.selectQuizPool(this)">Review only</button>
-                <button class="filter-tag quiz-pool-tag" data-quiz-pool="family" onclick="app.startFamilyLesson()">Flag families</button>
-                <button class="filter-tag quiz-pool-tag" data-quiz-pool="comparison" onclick="app.startComparisonTrainer()">Compare lookalikes</button>
+                <div class="segmented-control quiz-segmented-control" role="group" aria-label="Practice focus">
+                  <button class="filter-tag quiz-pool-tag active" data-quiz-pool="all" onclick="app.selectQuizPool(this)">All flags</button>
+                  <button class="filter-tag quiz-pool-tag" data-quiz-pool="review" onclick="app.selectQuizPool(this)">Review only</button>
+                  <button class="filter-tag quiz-pool-tag" data-quiz-pool="family" onclick="app.startFamilyLesson()">Flag families</button>
+                  <button class="filter-tag quiz-pool-tag" data-quiz-pool="comparison" onclick="app.startComparisonTrainer()">Compare lookalikes</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="quiz-setup-section quiz-continent-section">
+              <div class="quiz-setup-heading">
+                <span class="filter-label">Quiz pool</span>
+                <p class="filter-hint">Click to switch. Hold Ctrl to combine continents.</p>
+              </div>
+              <div class="filter-group quiz-continent-options">
+                <button class="filter-tag quiz-continent-tag active" data-continent="all" onclick="app.selectQuizContinent(this, event)">All</button>
+                <button class="filter-tag quiz-continent-tag" data-continent="Europe" onclick="app.selectQuizContinent(this, event)">Europe</button>
+                <button class="filter-tag quiz-continent-tag" data-continent="Asia" onclick="app.selectQuizContinent(this, event)">Asia</button>
+                <button class="filter-tag quiz-continent-tag" data-continent="Americas" onclick="app.selectQuizContinent(this, event)">Americas</button>
+                <button class="filter-tag quiz-continent-tag" data-continent="Africa" onclick="app.selectQuizContinent(this, event)">Africa</button>
+                <button class="filter-tag quiz-continent-tag" data-continent="Oceania" onclick="app.selectQuizContinent(this, event)">Oceania</button>
               </div>
             </div>
           </div>
