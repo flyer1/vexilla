@@ -917,12 +917,8 @@ class VexillaApp {
     const capitalName = document.getElementById('card-capital-name');
     if (capitalName) capitalName.textContent = activeFlag.capital;
 
-    const colorsVal = document.getElementById('card-colors');
-    if (colorsVal) {
-      // Capitalize first letter of each color
-      const capitalizedColors = activeFlag.colors.map((c) => c.charAt(0).toUpperCase() + c.slice(1));
-      colorsVal.textContent = capitalizedColors.join(', ');
-    }
+    const languagesVal = document.getElementById('card-languages');
+    if (languagesVal) languagesVal.textContent = this.getFlagLanguages(activeFlag) || 'Not listed';
 
     const mnemonicVal = document.getElementById('card-mnemonic');
     if (mnemonicVal) mnemonicVal.textContent = activeFlag.fact;
@@ -1165,14 +1161,23 @@ class VexillaApp {
 
   getComparisonGroups() {
     return [
-      ['ro', 'td'],
-      ['id', 'mc'],
-      ['nl', 'lu'],
+      ['ro', 'td', 'ad', 'md'],
+      ['id', 'mc', 'pl', 'at', 'lv'],
+      ['nl', 'lu', 'ru', 'si', 'sk', 'rs', 'hr'],
       ['au', 'nz'],
       ['ie', 'ci'],
       ['ml', 'gn', 'sn'],
       ['hn', 'sv', 'ni'],
     ];
+  }
+
+  getComparisonPeerCodes(questionFlag) {
+    const peerCodes = new Set();
+    this.getComparisonGroups().forEach((group) => {
+      if (group.includes(questionFlag.code)) group.forEach((code) => peerCodes.add(code));
+    });
+    peerCodes.delete(questionFlag.code);
+    return peerCodes;
   }
 
   startFamilyLesson(familyName = '') {
@@ -1431,12 +1436,31 @@ class VexillaApp {
     const scoreSimilarity = (flag) => {
       const sharedColors = flag.colors.filter((color) => questionFlag.colors.includes(color)).length;
       const sharedFeatures = flag.features.filter((feature) => questionFlag.features.includes(feature) || (feature === 'star' && questionFlag.features.includes('stars')) || (feature === 'stars' && questionFlag.features.includes('star'))).length;
+      const sameColorSet = flag.colors.length === questionFlag.colors.length && flag.colors.every((color) => questionFlag.colors.includes(color));
+      const sameFeatureSet = flag.features.length === questionFlag.features.length && flag.features.every((feature) => questionFlag.features.includes(feature));
+      const sharesStripeDirection =
+        (flag.features.includes('horizontal-stripes') && questionFlag.features.includes('horizontal-stripes')) ||
+        (flag.features.includes('vertical-stripes') && questionFlag.features.includes('vertical-stripes')) ||
+        (flag.features.includes('diagonal') && questionFlag.features.includes('diagonal'));
+      const mismatchedStripeDirection =
+        (flag.features.includes('horizontal-stripes') && questionFlag.features.includes('vertical-stripes')) ||
+        (flag.features.includes('vertical-stripes') && questionFlag.features.includes('horizontal-stripes'));
       const sameContinent = flag.continent === questionFlag.continent ? 1 : 0;
-      return sharedColors * 4 + sharedFeatures * 3 + sameContinent;
+      const comparisonBoost = this.quizPool === 'comparison' ? (sameColorSet ? 18 : 0) + (sameFeatureSet ? 16 : 0) + (sharesStripeDirection ? 14 : 0) - (mismatchedStripeDirection ? 10 : 0) : 0;
+      return sharedColors * 4 + sharedFeatures * 3 + sameContinent + comparisonBoost;
     };
     const candidates = answerPool.filter((flag) => flag.code !== questionFlag.code);
-    const ranked = [...candidates].sort((a, b) => scoreSimilarity(b) - scoreSimilarity(a) || Math.random() - 0.5);
-    const closeChoices = ranked.slice(0, Math.min(8, ranked.length));
+    const comparisonPeers = this.quizPool === 'comparison' ? this.getComparisonPeerCodes(questionFlag) : new Set();
+    const sameFamilyCandidates = candidates.filter((flag) => comparisonPeers.has(flag.code)).sort((a, b) => scoreSimilarity(b) - scoreSimilarity(a) || Math.random() - 0.5);
+    const remainingCandidates = candidates.filter((flag) => !comparisonPeers.has(flag.code));
+    const ranked = [...remainingCandidates].sort((a, b) => scoreSimilarity(b) - scoreSimilarity(a) || Math.random() - 0.5);
+    if (this.quizPool === 'comparison') {
+      const selectedLookalikes = [...sameFamilyCandidates, ...ranked].slice(0, 3);
+      this.shuffle(selectedLookalikes);
+      const remainingLookalikes = [...sameFamilyCandidates, ...ranked].filter((flag) => !selectedLookalikes.includes(flag));
+      return [...selectedLookalikes, ...remainingLookalikes];
+    }
+    const closeChoices = [...sameFamilyCandidates, ...ranked].slice(0, Math.min(8, candidates.length));
     this.shuffle(closeChoices);
     const remaining = ranked.filter((flag) => !closeChoices.includes(flag));
     this.shuffle(remaining);
