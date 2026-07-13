@@ -101,21 +101,23 @@ class VexillaApp {
     // Learning streaks are based on real study actions, not app opens.
     this.normalizeLearningStreak();
     this.pruneRetiredAchievements();
-    this.setupModalKeyboardControls();
+    this.setupKeyboardControls();
 
     // Setup flashcard click listeners
     const card = document.getElementById('interactive-card');
     if (card) {
-      card.addEventListener('click', () => {
-        card.classList.toggle('flipped');
-        this.playAudioTone(330, 'triangle', 0.05); // Subtle flip sound
-      });
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', 'Flip flashcard to show or hide details');
+      card.setAttribute('aria-pressed', 'false');
+      card.addEventListener('click', () => this.flipFlashcard());
     }
 
     // Refresh UI elements
     this.updateDashboardStats();
     this.renderAtlas();
     this.renderAchievementsList();
+    this.enhanceStaticKeyboardActions();
 
     // Check initial achievements
     this.checkAchievements();
@@ -1514,6 +1516,13 @@ class VexillaApp {
         nextButton.innerHTML = '<span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
         nextButton.onclick = () => this.advanceQuizQuestion();
         feedback.append(copy, nextButton);
+        window.requestAnimationFrame(() => {
+          try {
+            nextButton.focus({ preventScroll: true });
+          } catch {
+            nextButton.focus();
+          }
+        });
         if (window.matchMedia('(max-width: 768px)').matches) {
           window.requestAnimationFrame(() => {
             const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1624,6 +1633,25 @@ class VexillaApp {
     this.checkAchievements();
   }
 
+  flipFlashcard() {
+    const card = document.getElementById('interactive-card');
+    if (!card) return;
+    card.classList.toggle('flipped');
+    card.setAttribute('aria-pressed', String(card.classList.contains('flipped')));
+    this.playAudioTone(330, 'triangle', 0.05); // Subtle flip sound
+  }
+
+  enhanceStaticKeyboardActions() {
+    document.querySelectorAll('.level-card[onclick]').forEach((card) => {
+      if (!(card instanceof HTMLElement)) return;
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.classList.add('keyboard-action');
+      const title = card.querySelector('.level-title')?.textContent?.trim();
+      if (title) card.setAttribute('aria-label', `Start ${title}`);
+    });
+  }
+
   restartQuiz() {
     this.startQuiz();
   }
@@ -1704,6 +1732,10 @@ class VexillaApp {
       card.className = `match-card glass-panel ${cardData.type}-card`;
       card.setAttribute('data-id', cardData.id);
       card.setAttribute('data-type', cardData.type);
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.classList.add('keyboard-action');
+      card.setAttribute('aria-label', cardData.type === 'flag' ? `Select flag card for ${cardData.name}` : `Select country card ${cardData.name}`);
 
       if (cardData.type === 'flag') {
         card.innerHTML = `
@@ -1750,6 +1782,8 @@ class VexillaApp {
 
     cards.forEach((card) => {
       card.classList.add('matched', 'match-reward');
+      card.setAttribute('tabindex', '-1');
+      card.setAttribute('aria-disabled', 'true');
 
       card.querySelectorAll('.match-reward-burst').forEach((burst) => burst.remove());
       const burst = document.createElement('div');
@@ -1926,6 +1960,10 @@ class VexillaApp {
       card.setAttribute('data-country', flag.name);
       card.setAttribute('data-code', flag.code);
       card.setAttribute('data-continent', flag.continent);
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.classList.add('keyboard-action');
+      card.setAttribute('aria-label', `Open details for ${flag.name}`);
       card.onclick = () => this.openFlagModal(flag);
 
       card.innerHTML = `
@@ -2694,15 +2732,170 @@ class VexillaApp {
     this.lastModalTrigger = null;
   }
 
-  setupModalKeyboardControls() {
+  setupKeyboardControls() {
     if (this.modalKeyboardReady) return;
     this.modalKeyboardReady = true;
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        this.closeModal();
+      const modal = document.getElementById('flag-detail-modal');
+      const modalIsOpen = modal?.classList.contains('active');
+
+      if (modalIsOpen && event.key === 'Tab') {
+        this.trapModalFocus(event, modal);
+        return;
       }
+
+      if (event.key === 'Escape') {
+        this.closeMapFinderPanel();
+        this.closeModal();
+        return;
+      }
+
+      if (this.activateCustomButtonFromKeyboard(event)) return;
+      if (this.isTypingTarget(event.target)) return;
+      if (modalIsOpen) return;
+
+      if (event.key === '?') {
+        event.preventDefault();
+        this.showKeyboardShortcuts();
+        return;
+      }
+
+      if (event.altKey && !event.ctrlKey && !event.metaKey) {
+        const navShortcuts = {
+          1: 'dashboard',
+          2: 'flashcards',
+          3: 'quiz',
+          4: 'match',
+          5: 'encyclopedia',
+          6: 'map',
+          7: 'achievements',
+          s: 'settings',
+        };
+        const targetView = navShortcuts[event.key.toLowerCase()];
+        if (targetView) {
+          event.preventDefault();
+          this.switchView(targetView);
+          return;
+        }
+      }
+
+      this.handleViewKeyboardShortcut(event);
     });
+  }
+
+  isTypingTarget(target) {
+    if (!(target instanceof HTMLElement)) return false;
+    const tagName = target.tagName.toLowerCase();
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable;
+  }
+
+  activateCustomButtonFromKeyboard(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return false;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (!target || target.matches('button, a, input, textarea, select')) return false;
+    const actionTarget = target.closest('[role="button"][tabindex], .keyboard-action');
+    if (!(actionTarget instanceof HTMLElement)) return false;
+    event.preventDefault();
+    actionTarget.click();
+    return true;
+  }
+
+  trapModalFocus(event, modal) {
+    const focusable = [...modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((item) => item instanceof HTMLElement && !item.hasAttribute('disabled') && item.getClientRects().length > 0);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  showKeyboardShortcuts() {
+    this.spawnToast(
+      'Keyboard shortcuts',
+      'Alt+1-7 views, Alt+S settings, A-D quiz answers, F flip card, K learned, R review, / search or flag finder, + - 0 map zoom.',
+      '⌨',
+      12000,
+    );
+  }
+
+  handleViewKeyboardShortcut(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key.toLowerCase();
+
+    if (this.currentView === 'flashcards') {
+      if (key === 'f') {
+        event.preventDefault();
+        this.flipFlashcard();
+      } else if (key === 'k') {
+        event.preventDefault();
+        this.cardAction('learned');
+      } else if (key === 'r') {
+        event.preventDefault();
+        this.cardAction('review');
+      }
+      return;
+    }
+
+    if (this.currentView === 'quiz') {
+      const optionIndex = ['a', 'b', 'c', 'd'].indexOf(key);
+      if (optionIndex >= 0) {
+        const option = document.querySelectorAll('.quiz-option')[optionIndex];
+        if (option instanceof HTMLButtonElement && !option.disabled) {
+          event.preventDefault();
+          option.click();
+        }
+      } else if (key === 'n') {
+        const nextButton = document.querySelector('.quiz-feedback-close');
+        if (nextButton instanceof HTMLButtonElement && !nextButton.hidden) {
+          event.preventDefault();
+          nextButton.click();
+        }
+      }
+      return;
+    }
+
+    if (this.currentView === 'encyclopedia' && event.key === '/') {
+      const searchInput = document.getElementById('atlas-search-input');
+      if (searchInput instanceof HTMLInputElement) {
+        event.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      return;
+    }
+
+    if (this.currentView === 'map') {
+      if (event.key === '+' || event.key === '=') {
+        document.getElementById('map-zoom-in')?.click();
+      } else if (event.key === '-') {
+        document.getElementById('map-zoom-out')?.click();
+      } else if (event.key === '0') {
+        document.getElementById('map-zoom-reset')?.click();
+      } else if (event.key === '/') {
+        document.getElementById('map-unplaced-toggle')?.click();
+      } else if (key === 'm') {
+        document.getElementById('map-challenge-toggle')?.click();
+      } else {
+        return;
+      }
+      event.preventDefault();
+    }
+  }
+
+  closeMapFinderPanel() {
+    const panel = document.getElementById('map-unplaced-panel');
+    const toggle = document.getElementById('map-unplaced-toggle');
+    if (!panel?.classList.contains('active')) return;
+    panel.classList.remove('active');
+    panel.setAttribute('aria-hidden', 'true');
+    toggle?.setAttribute('aria-expanded', 'false');
+    if (toggle instanceof HTMLElement) toggle.focus();
   }
 
   // --- WORLD MAP ---
