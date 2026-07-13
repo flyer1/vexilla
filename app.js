@@ -59,6 +59,7 @@ class VexillaApp {
       color: ['all'],
       feature: ['all'],
     };
+    this.atlasViewMode = 'tile';
 
     // Encyclopedia tracking
     this.viewedCountries = new Set(this.state.viewedFlagCodes || []);
@@ -1735,6 +1736,7 @@ class VexillaApp {
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
       card.classList.add('keyboard-action');
+      card.setAttribute('aria-pressed', 'false');
       card.setAttribute('aria-label', cardData.type === 'flag' ? `Select flag card for ${cardData.name}` : `Select country card ${cardData.name}`);
 
       if (cardData.type === 'flag') {
@@ -1829,7 +1831,17 @@ class VexillaApp {
   }
 
   handleMatchCardSelect(cardEl) {
-    if (cardEl.classList.contains('matched') || cardEl.classList.contains('selected')) return;
+    if (cardEl.classList.contains('matched')) return;
+
+    if (cardEl.classList.contains('selected')) {
+      if (this.firstSelectedCard === cardEl) {
+        this.firstSelectedCard = null;
+        cardEl.classList.remove('selected');
+        cardEl.setAttribute('aria-pressed', 'false');
+        this.playAudioTone(260, 'triangle', 0.04);
+      }
+      return;
+    }
 
     this.playAudioTone(440, 'triangle', 0.05); // Click tap
 
@@ -1837,6 +1849,7 @@ class VexillaApp {
     if (!this.firstSelectedCard) {
       this.firstSelectedCard = cardEl;
       cardEl.classList.add('selected');
+      cardEl.setAttribute('aria-pressed', 'true');
       return;
     }
 
@@ -1850,6 +1863,7 @@ class VexillaApp {
     if (firstId === secondId && firstType !== secondType) {
       // MATCH SUCCESS!
       this.firstSelectedCard.classList.remove('selected');
+      this.firstSelectedCard.setAttribute('aria-pressed', 'false');
 
       const isCleanMatch = !this.matchDisqualifiedIds.has(firstId);
       if (isCleanMatch) {
@@ -1871,6 +1885,7 @@ class VexillaApp {
     } else {
       // MISMATCH
       cardEl.classList.add('selected');
+      cardEl.setAttribute('aria-pressed', 'true');
       const prevCard = this.firstSelectedCard;
       this.firstSelectedCard = null;
       this.matchMistakes++;
@@ -1886,6 +1901,8 @@ class VexillaApp {
       setTimeout(() => {
         prevCard.classList.remove('selected');
         cardEl.classList.remove('selected');
+        prevCard.setAttribute('aria-pressed', 'false');
+        cardEl.setAttribute('aria-pressed', 'false');
       }, 500);
     }
   }
@@ -1933,6 +1950,7 @@ class VexillaApp {
     const grid = document.getElementById('encyclopedia-grid-container');
     if (!grid) return;
     grid.innerHTML = '';
+    grid.classList.toggle('list-view', this.atlasViewMode === 'list');
 
     const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
     const sortedFlags = [...this.flags].sort((a, b) => {
@@ -1965,6 +1983,9 @@ class VexillaApp {
       card.classList.add('keyboard-action');
       card.setAttribute('aria-label', `Open details for ${flag.name}`);
       card.onclick = () => this.openFlagModal(flag);
+      const languagesLabel = this.getFlagLanguages(flag) || 'Languages not listed';
+      const colorsLabel = flag.colors.map((color) => color.charAt(0).toUpperCase() + color.slice(1)).join(', ');
+      const featuresLabel = flag.features.map((feature) => this.formatFeatureLabel(feature)).join(', ');
 
       card.innerHTML = `
         <div class="encyclopedia-flag-box">
@@ -1973,12 +1994,37 @@ class VexillaApp {
         <div class="encyclopedia-info">
           <span class="encyclopedia-country-name">${flag.name}</span>
           <span class="encyclopedia-country-sub">Capital: ${flag.capital}</span>
+          <div class="encyclopedia-list-content">
+            <div class="encyclopedia-list-heading">
+              <span class="encyclopedia-list-name">${flag.name}</span>
+              <span class="encyclopedia-list-continent">${flag.continent}</span>
+            </div>
+            <div class="encyclopedia-list-languages"><span>Languages</span>${languagesLabel}</div>
+            <p class="encyclopedia-list-description">${flag.fact}</p>
+            <div class="encyclopedia-list-meta">
+              <span>${colorsLabel}</span>
+              <span>${featuresLabel}</span>
+              <span>Capital: ${flag.capital}</span>
+              <span>Level ${flag.difficulty}</span>
+            </div>
+          </div>
         </div>
       `;
       grid.appendChild(card);
     });
 
     this.filterAtlas();
+  }
+
+  setAtlasViewMode(mode) {
+    if (mode !== 'tile' && mode !== 'list') return;
+    this.atlasViewMode = mode;
+    document.querySelectorAll('.atlas-view-btn').forEach((button) => {
+      const isActive = button.getAttribute('data-atlas-view') === mode;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+    this.renderAtlas();
   }
 
   filterAtlas() {

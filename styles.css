@@ -1757,6 +1757,14 @@ h4 {
   margin: -0.45rem 0 0;
 }
 
+.atlas-status-tools {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex: 0 0 auto;
+}
+
 .atlas-result-summary {
   flex: 0 0 auto;
   padding: 0.28rem 0.6rem;
@@ -1767,6 +1775,55 @@ h4 {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.atlas-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.18rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.atlas-view-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.atlas-view-btn:hover,
+.atlas-view-btn.active {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 242, 254, 0.34);
+  background: rgba(0, 242, 254, 0.1);
+}
+
+.atlas-view-btn.active {
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+}
+
+.atlas-view-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .filter-hint {
@@ -2577,6 +2634,23 @@ h4 {
   gap: 1.5rem;
 }
 
+.encyclopedia-grid.list-view {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1280px) {
+  .encyclopedia-grid.list-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1900px) {
+  .encyclopedia-grid.list-view {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .encyclopedia-continent-header {
   grid-column: 1 / -1;
   display: flex;
@@ -2644,6 +2718,18 @@ h4 {
   border-color: rgba(157, 78, 221, 0.3);
 }
 
+.encyclopedia-grid.list-view .encyclopedia-card {
+  min-height: 132px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.8rem;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-card:hover {
+  transform: translateX(3px);
+}
+
 .encyclopedia-flag-box {
   width: 100%;
   aspect-ratio: 3/2;
@@ -2651,6 +2737,12 @@ h4 {
   overflow: hidden;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.encyclopedia-grid.list-view .encyclopedia-flag-box {
+  width: 104px;
+  flex: 0 0 104px;
+  border-radius: 7px;
 }
 
 .encyclopedia-flag-box img {
@@ -2663,6 +2755,8 @@ h4 {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .encyclopedia-country-name {
@@ -2676,6 +2770,107 @@ h4 {
 .encyclopedia-country-sub {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.encyclopedia-list-meta {
+  display: none;
+}
+
+.encyclopedia-list-content {
+  display: none;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-country-sub {
+  display: none;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-info {
+  display: block;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-country-name {
+  display: none;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-list-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.encyclopedia-list-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.encyclopedia-list-name {
+  min-width: 0;
+  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.encyclopedia-list-continent {
+  flex: 0 0 auto;
+  padding: 0.16rem 0.42rem;
+  border: 1px solid rgba(0, 242, 254, 0.18);
+  border-radius: 999px;
+  color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.06);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.encyclopedia-list-languages {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.encyclopedia-list-languages span {
+  flex: 0 0 auto;
+  color: var(--accent-cyan);
+  font-weight: 800;
+}
+
+.encyclopedia-list-description {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.38;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.encyclopedia-grid.list-view .encyclopedia-list-meta span {
+  max-width: 100%;
+  padding: 0.16rem 0.38rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- PROGRESS & ACHIEVEMENT VIEW --- */
@@ -3730,6 +3925,11 @@ input:checked + .slider:before {
     gap: 0.4rem;
   }
 
+  .atlas-status-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .atlas-result-summary {
     font-size: 0.68rem;
     padding: 0.24rem 0.52rem;
@@ -3900,6 +4100,10 @@ input:checked + .slider:before {
     gap: 0.8rem;
   }
 
+  .encyclopedia-grid.list-view {
+    grid-template-columns: 1fr;
+  }
+
   .encyclopedia-continent-header,
   .achievement-group-header {
     margin: 0.1rem 0 -0.25rem;
@@ -3911,6 +4115,41 @@ input:checked + .slider:before {
     padding: 0.55rem;
     gap: 0.55rem;
     border-radius: 14px;
+  }
+
+  .encyclopedia-grid.list-view .encyclopedia-card {
+    min-height: 116px;
+    gap: 0.65rem;
+    padding: 0.55rem;
+  }
+
+  .encyclopedia-grid.list-view .encyclopedia-flag-box {
+    width: 74px;
+    flex-basis: 74px;
+  }
+
+  .encyclopedia-grid.list-view .encyclopedia-info {
+    gap: 0.28rem;
+  }
+
+  .encyclopedia-grid.list-view .encyclopedia-list-meta {
+    gap: 0.2rem;
+    font-size: 0.66rem;
+  }
+
+  .encyclopedia-list-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .encyclopedia-list-languages,
+  .encyclopedia-list-description {
+    font-size: 0.68rem;
+  }
+
+  .encyclopedia-grid.list-view .encyclopedia-list-meta span:nth-child(n + 3) {
+    display: none;
   }
 
   .encyclopedia-country-name {
