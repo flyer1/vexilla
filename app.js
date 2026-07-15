@@ -103,6 +103,7 @@ class VexillaApp {
     this.normalizeLearningStreak();
     this.pruneRetiredAchievements();
     this.setupKeyboardControls();
+    this.registerServiceWorker();
 
     // Setup flashcard click listeners
     const card = document.getElementById('interactive-card');
@@ -125,6 +126,71 @@ class VexillaApp {
   }
 
   // --- STATE MANAGEMENT ---
+  registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('./sw.js').catch((error) => {
+      console.warn('Offline support could not be registered:', error);
+    });
+  }
+
+  async prepareOfflineAssets() {
+    const button = document.getElementById('offline-cache-button');
+    if (!('caches' in window)) {
+      this.spawnToast('Offline mode unavailable', 'This browser does not support the Cache API needed for offline storage.', '!');
+      return;
+    }
+
+    const previousLabel = button?.textContent || 'Prepare Offline';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Caching...';
+    }
+
+    const sameOriginAssets = ['./', './index.html', './styles.css', './data.js', './app.js', './favicon.ico', './manifest.json', './sw.js'];
+    const sharedAssets = [
+      this.mapDataUrl,
+      'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
+      'https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
+      'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap',
+    ];
+    const flagAssets = this.flags.flatMap((flag) => [40, 80, 320].map((width) => this.getFlagImageCdnSrc(flag.code, width)));
+    const urls = [...sameOriginAssets, ...sharedAssets, ...flagAssets];
+
+    let cachedCount = 0;
+    let failedCount = 0;
+
+    try {
+      const cache = await caches.open('vexilla-offline-v1');
+      for (const url of urls) {
+        try {
+          const request = new Request(url, { mode: url.startsWith('http') ? 'cors' : 'same-origin' });
+          const response = await fetch(request, { cache: 'reload' });
+          if (!response.ok && response.type !== 'opaque') throw new Error(`HTTP ${response.status}`);
+          await cache.put(request, response);
+          cachedCount++;
+        } catch (error) {
+          failedCount++;
+          console.warn('Offline cache skipped asset:', url, error);
+        }
+      }
+
+      this.spawnToast(
+        'Offline cache ready',
+        failedCount ? `${cachedCount} assets cached. ${failedCount} could not be cached and may need internet.` : `${cachedCount} assets cached for offline use.`,
+        '✓',
+        12000,
+      );
+    } catch (error) {
+      console.error('Unable to prepare offline assets:', error);
+      this.spawnToast('Offline cache failed', 'The browser could not finish preparing offline mode.', '!');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = previousLabel;
+      }
+    }
+  }
+
   loadState() {
     const defaultState = {
       learnedFlags: [], // List of country codes
@@ -786,9 +852,15 @@ class VexillaApp {
     days.forEach((day) => {
       const cell = document.createElement('span');
       const level = day.score === 0 ? 0 : Math.max(1, Math.ceil((day.score / maxScore) * 4));
+      const sessionsLabel = `${day.sessions} session${day.sessions === 1 ? '' : 's'}`;
+      const xpLabel = `${day.xp} XP`;
+      const activityLabel = day.score > 0 ? `Activity score ${day.score}` : 'No activity';
+      const tooltip = `${day.label}\n${sessionsLabel} • ${xpLabel}\n${activityLabel}`;
       cell.className = 'activity-cell';
       cell.setAttribute('data-level', level);
-      cell.title = `${day.label}: ${day.sessions} session${day.sessions === 1 ? '' : 's'}${day.xp ? `, ${day.xp} XP` : ''}`;
+      cell.setAttribute('tabindex', '0');
+      cell.setAttribute('aria-label', tooltip.replace(/\n/g, '. '));
+      cell.setAttribute('data-tooltip', tooltip);
       grid.appendChild(cell);
     });
 

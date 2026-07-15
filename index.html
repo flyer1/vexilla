@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vexilla - Learn the Flags of the World</title>
     <meta name="description" content="Master country flags, capitals, and geography with Vexilla. Interactive flashcards, progressive quizzes, matching games, and progress tracking." />
+    <meta name="theme-color" content="#0b0f19" />
+    <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="styles.css" />
@@ -990,6 +992,16 @@
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">Esc</kbd><span>Close modals and overlays</span></div>
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">Enter</kbd><span>Activate focused cards and buttons</span></div>
                 </div>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <span class="settings-label">Offline Mode</span>
+                <span class="settings-desc">Cache the app, map data, and flag images so Vexilla keeps working after this device loses internet.</span>
+              </div>
+              <div class="settings-action">
+                <button class="secondary-btn compact-btn" id="offline-cache-button" type="button" onclick="app.prepareOfflineAssets()">Prepare Offline</button>
               </div>
             </div>
 

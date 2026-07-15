@@ -1,0 +1,17 @@
+{
+  "name": "Vexilla - Learn the Flags of the World",
+  "short_name": "Vexilla",
+  "description": "Learn country flags, capitals, geography, and design stories with flashcards, quizzes, maps, and progress tracking.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "16x16 32x32 48x48 64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
