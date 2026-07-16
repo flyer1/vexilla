@@ -60,6 +60,8 @@ class VexillaApp {
       feature: ['all'],
     };
     this.atlasViewMode = 'tile';
+    this.isApplyingUrlState = false;
+    this.deepLinksReady = false;
 
     // Encyclopedia tracking
     this.viewedCountries = new Set(this.state.viewedFlagCodes || []);
@@ -73,6 +75,9 @@ class VexillaApp {
     this.mapLocatorContext = null;
     this.mapLocatorContextPromise = null;
     this.mapChallengeNext = null;
+    this.focusWorldMapOnFlag = null;
+    this.pendingMapFocusCode = '';
+    this.mapRouteFlagCode = '';
     this.mapChallengeActive = false;
     this.mapChallengeScore = 0;
 
@@ -104,6 +109,7 @@ class VexillaApp {
     this.pruneRetiredAchievements();
     this.setupKeyboardControls();
     this.registerServiceWorker();
+    this.setupDeepLinks();
 
     // Setup flashcard click listeners
     const card = document.getElementById('interactive-card');
@@ -575,7 +581,14 @@ class VexillaApp {
   }
 
   // --- SPA ROUTER ---
-  switchView(viewId) {
+  getRouteableViews() {
+    return new Set(['dashboard', 'flashcards', 'quiz', 'match', 'encyclopedia', 'map', 'achievements', 'settings']);
+  }
+
+  switchView(viewId, options = {}) {
+    const { fromUrl = false, replaceUrl = false, silent = false } = options;
+    if (!this.getRouteableViews().has(viewId)) viewId = 'dashboard';
+
     if (this.flashcardCompletionTimeout) {
       clearTimeout(this.flashcardCompletionTimeout);
       this.flashcardCompletionTimeout = null;
@@ -586,8 +599,10 @@ class VexillaApp {
       this.isAdvancingFlashcard = false;
     }
 
-    this.initAudio();
-    this.playAudioTone(600, 'sine', 0.02); // Short click tap sound
+    if (!silent) {
+      this.initAudio();
+      this.playAudioTone(600, 'sine', 0.02); // Short click tap sound
+    }
 
     // Hide all views
     const views = document.querySelectorAll('.view-section');
@@ -623,7 +638,12 @@ class VexillaApp {
       this.updateContinentControls('flashcards');
       this.updateFlashcardDeckControls();
       if (this.currentDeck.length === 0 || this.currentDeckIndex >= this.currentDeck.length) {
-        this.startLevel(this.activeLevel || 1);
+        if (this.flashcardDeckMode === 'due' || this.flashcardDeckMode === 'flagged') {
+          this.startReviewDeck(this.flashcardDeckMode, { navigate: false });
+        } else {
+          this.startLevel(this.activeLevel || 1, { navigate: false });
+        }
+        if (!fromUrl) this.updateUrlFromState({ replace: replaceUrl });
         return;
       }
       this.loadNextFlashcard();
@@ -641,6 +661,140 @@ class VexillaApp {
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (!fromUrl) this.updateUrlFromState({ replace: replaceUrl });
+  }
+
+  setupDeepLinks() {
+    if (this.deepLinksReady) return;
+    this.deepLinksReady = true;
+    window.addEventListener('popstate', () => {
+      this.applyUrlState({ replace: true });
+    });
+  }
+
+  encodeSelection(values) {
+    return (values || []).filter(Boolean).join(',');
+  }
+
+  decodeSelection(value, allowedValues = []) {
+    if (!value) return ['all'];
+    const allowed = new Set(allowedValues);
+    const values = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item && (allowed.size === 0 || allowed.has(item)));
+    if (values.length > 1 && values.includes('all')) return values.filter((item) => item !== 'all');
+    return values.length ? values : ['all'];
+  }
+
+  updateUrlFromState({ replace = false } = {}) {
+    if (this.isApplyingUrlState) return;
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams();
+    const view = this.currentView || 'dashboard';
+    params.set('view', view);
+
+    if (view === 'encyclopedia') {
+      const searchInput = document.getElementById('atlas-search-input');
+      if (this.atlasViewMode !== 'tile') params.set('atlasView', this.atlasViewMode);
+      if (searchInput?.value?.trim()) params.set('q', searchInput.value.trim());
+      ['continent', 'color', 'feature'].forEach((key) => {
+        const value = this.encodeSelection(this.activeFilters[key]);
+        if (value && value !== 'all') params.set(key, value);
+      });
+    } else if (view === 'quiz') {
+      if (this.quizMode !== 'flag-country') params.set('quizMode', this.quizMode);
+      if (this.quizPool !== 'all') params.set('quizPool', this.quizPool);
+      if (this.quizFamily) params.set('family', this.quizFamily);
+      const continents = this.encodeSelection(this.activeQuizContinents);
+      if (continents && continents !== 'all') params.set('continents', continents);
+    } else if (view === 'flashcards') {
+      if (this.activeLevel && this.activeLevel !== 1) params.set('level', String(this.activeLevel));
+      if (this.flashcardDeckMode !== 'learn') params.set('deck', this.flashcardDeckMode);
+      const continents = this.encodeSelection(this.activeFlashcardContinents);
+      if (continents && continents !== 'all') params.set('continents', continents);
+    } else if (view === 'match') {
+      const continents = this.encodeSelection(this.activeMatchContinents);
+      if (continents && continents !== 'all') params.set('continents', continents);
+    } else if (view === 'map') {
+      const flagCode = this.pendingMapFocusCode || this.mapRouteFlagCode;
+      if (flagCode) params.set('flag', flagCode);
+    }
+
+    url.search = params.toString();
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next === current) return;
+    history[replace ? 'replaceState' : 'pushState']({ view }, '', next);
+  }
+
+  applyUrlState({ replace = false } = {}) {
+    const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get('view') || 'dashboard';
+    const view = this.getRouteableViews().has(requestedView) ? requestedView : 'dashboard';
+    const continents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania', 'all'];
+
+    this.isApplyingUrlState = true;
+    try {
+      if (view === 'encyclopedia') {
+        this.atlasViewMode = params.get('atlasView') === 'list' ? 'list' : 'tile';
+        this.activeFilters.continent = this.decodeSelection(params.get('continent'), continents);
+        this.activeFilters.color = this.decodeSelection(params.get('color'), ['red', 'blue', 'green', 'yellow', 'white', 'black', 'all']);
+        this.activeFilters.feature = this.decodeSelection(params.get('feature'), ['horizontal-stripes', 'vertical-stripes', 'stars', 'cross', 'crescent', 'emblem', 'circle', 'all']);
+      } else if (view === 'quiz') {
+        const quizModes = new Set(['flag-country', 'country-flag', 'flag-capital', 'capital-flag']);
+        const quizPools = new Set(['all', 'review', 'family', 'comparison']);
+        const mode = params.get('quizMode');
+        const pool = params.get('quizPool');
+        if (quizModes.has(mode)) this.quizMode = mode;
+        if (quizPools.has(pool)) this.quizPool = pool;
+        this.quizFamily = params.get('family') || this.quizFamily || '';
+        this.activeQuizContinents = this.decodeSelection(params.get('continents'), continents);
+        this.syncQuizSetupControls();
+      } else if (view === 'flashcards') {
+        const level = Number(params.get('level'));
+        if ([1, 2, 3].includes(level)) {
+          this.activeLevel = level;
+          this.lastStudyLevel = level;
+        }
+        const deck = params.get('deck');
+        if (['learn', 'flagged', 'due'].includes(deck)) this.flashcardDeckMode = deck;
+        this.activeFlashcardContinents = this.decodeSelection(params.get('continents'), continents);
+      } else if (view === 'match') {
+        this.activeMatchContinents = this.decodeSelection(params.get('continents'), continents);
+      } else if (view === 'map') {
+        const flagCode = params.get('flag');
+        if (flagCode && this.flags.some((flag) => flag.code === flagCode)) {
+          this.pendingMapFocusCode = flagCode;
+          this.mapRouteFlagCode = flagCode;
+        }
+      }
+
+      this.switchView(view, { fromUrl: true, replaceUrl: replace, silent: true });
+      this.applyViewSpecificUrlState(view, params);
+    } finally {
+      this.isApplyingUrlState = false;
+    }
+  }
+
+  applyViewSpecificUrlState(view, params) {
+    if (view === 'encyclopedia') {
+      const searchInput = document.getElementById('atlas-search-input');
+      if (searchInput instanceof HTMLInputElement) searchInput.value = params.get('q') || '';
+      this.syncAtlasFilterControls();
+      this.setAtlasViewMode(this.atlasViewMode, { updateUrl: false });
+      this.filterAtlas();
+    } else if (view === 'quiz') {
+      this.syncQuizSetupControls();
+    } else if (view === 'flashcards') {
+      this.updateContinentControls('flashcards');
+      this.updateFlashcardDeckControls();
+    } else if (view === 'match') {
+      this.updateContinentControls('match');
+    } else if (view === 'map') {
+      this.processPendingMapFocus();
+    }
   }
 
   // --- SETTINGS CONTROLS ---
@@ -886,7 +1040,8 @@ class VexillaApp {
   }
 
   // --- FLASHCARDS MODE ---
-  startLevel(lvl) {
+  startLevel(lvl, options = {}) {
+    const { navigate = true } = options;
     this.activeLevel = lvl;
     this.lastStudyLevel = lvl || this.lastStudyLevel || 1;
     this.flashcardDeckMode = 'learn';
@@ -926,7 +1081,11 @@ class VexillaApp {
     this.updateContinentControls('flashcards');
     this.updateFlashcardDeckControls();
 
-    this.switchView('flashcards');
+    if (navigate) {
+      this.switchView('flashcards');
+    } else {
+      this.loadNextFlashcard();
+    }
   }
 
   loadNextFlashcard() {
@@ -1092,7 +1251,8 @@ class VexillaApp {
     this.startLevel(1);
   }
 
-  startReviewDeck(kind = 'flagged') {
+  startReviewDeck(kind = 'flagged', options = {}) {
+    const { navigate = true } = options;
     const reviewCodes = kind === 'due' ? this.getDueFlags().map((flag) => flag.code) : this.state.needReviewFlags;
     const selectedCodes = new Set(reviewCodes);
     const deck = this.filterBySelectedContinents(
@@ -1117,7 +1277,11 @@ class VexillaApp {
     if (studyTitle) studyTitle.textContent = kind === 'due' ? 'Review Deck: Due Today' : 'Review Deck: Needs Review';
     this.updateContinentControls('flashcards');
     this.updateFlashcardDeckControls();
-    this.switchView('flashcards');
+    if (navigate) {
+      this.switchView('flashcards');
+    } else {
+      this.loadNextFlashcard();
+    }
   }
 
   selectFlashcardDeckMode(element) {
@@ -1190,6 +1354,8 @@ class VexillaApp {
     } else if (mode === 'match') {
       this.startMatchGame();
     }
+
+    this.updateUrlFromState({ replace: true });
   }
 
   filterBySelectedContinents(flags, continents) {
@@ -1208,6 +1374,16 @@ class VexillaApp {
     this.updateContinentControls('quiz');
   }
 
+  syncQuizSetupControls() {
+    document.querySelectorAll('.quiz-mode-tag').forEach((tag) => {
+      tag.classList.toggle('active', tag.getAttribute('data-quiz-mode') === this.quizMode);
+    });
+    document.querySelectorAll('.quiz-pool-tag').forEach((tag) => {
+      tag.classList.toggle('active', tag.getAttribute('data-quiz-pool') === this.quizPool);
+    });
+    this.updateQuizContinentControls();
+  }
+
   selectQuizContinent(element, event) {
     this.selectContinentForMode('quiz', element, event);
   }
@@ -1216,6 +1392,7 @@ class VexillaApp {
     this.quizMode = element.getAttribute('data-quiz-mode') || 'flag-country';
     document.querySelectorAll('.quiz-mode-tag').forEach((tag) => tag.classList.toggle('active', tag === element));
     this.startQuiz();
+    this.updateUrlFromState({ replace: true });
   }
 
   selectQuizPool(element) {
@@ -1223,6 +1400,7 @@ class VexillaApp {
     this.quizFamily = '';
     document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag === element));
     this.startQuiz();
+    this.updateUrlFromState({ replace: true });
   }
 
   getFlagFamilyGroups() {
@@ -1266,6 +1444,7 @@ class VexillaApp {
     document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-pool') === 'family'));
     this.spawnToast('Flag Family Lesson', `Training the ${this.quizFamily} family. Notice the shared pattern, then learn the differences.`, '◈');
     this.startQuiz();
+    this.updateUrlFromState({ replace: true });
   }
 
   startComparisonTrainer() {
@@ -1275,6 +1454,7 @@ class VexillaApp {
     document.querySelectorAll('.quiz-pool-tag').forEach((tag) => tag.classList.toggle('active', tag.getAttribute('data-quiz-pool') === 'comparison'));
     this.spawnToast('Comparison Trainer', 'These rounds use deliberately similar flags. Look for the small detail that separates them.', '◎');
     this.startQuiz();
+    this.updateUrlFromState({ replace: true });
   }
 
   getQuizPoolFlags(customLevel = null, customContinents = null) {
@@ -2070,6 +2250,10 @@ class VexillaApp {
             <div class="encyclopedia-list-heading">
               <span class="encyclopedia-list-name">${flag.name}</span>
               <span class="encyclopedia-list-continent">${flag.continent}</span>
+              <button class="atlas-map-link" type="button" aria-label="Show ${flag.name} on the world map" onclick="app.navigateAtlasFlagToMap('${flag.code}', event)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path></svg>
+                <span>Map</span>
+              </button>
             </div>
             <div class="encyclopedia-list-languages"><span>Languages</span>${languagesLabel}</div>
             <p class="encyclopedia-list-description">${flag.fact}</p>
@@ -2088,7 +2272,30 @@ class VexillaApp {
     this.filterAtlas();
   }
 
-  setAtlasViewMode(mode) {
+  navigateAtlasFlagToMap(flagCode, event) {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const flag = this.flags.find((item) => item.code === flagCode);
+    if (!flag) return;
+    this.pendingMapFocusCode = flagCode;
+    this.mapRouteFlagCode = flagCode;
+    this.switchView('map');
+    window.setTimeout(() => this.processPendingMapFocus(), 0);
+  }
+
+  processPendingMapFocus() {
+    if (!this.pendingMapFocusCode || typeof this.focusWorldMapOnFlag !== 'function') return;
+    const flag = this.flags.find((item) => item.code === this.pendingMapFocusCode);
+    this.pendingMapFocusCode = '';
+    if (flag) {
+      this.mapRouteFlagCode = flag.code;
+      this.focusWorldMapOnFlag(flag);
+      this.updateUrlFromState({ replace: true });
+    }
+  }
+
+  setAtlasViewMode(mode, options = {}) {
+    const { updateUrl = true } = options;
     if (mode !== 'tile' && mode !== 'list') return;
     this.atlasViewMode = mode;
     document.querySelectorAll('.atlas-view-btn').forEach((button) => {
@@ -2097,6 +2304,20 @@ class VexillaApp {
       button.setAttribute('aria-pressed', String(isActive));
     });
     this.renderAtlas();
+    if (updateUrl) this.updateUrlFromState({ replace: true });
+  }
+
+  syncAtlasFilterControls() {
+    document.querySelectorAll('.filter-tag[data-filter]').forEach((tag) => {
+      const filterType = tag.getAttribute('data-filter');
+      const tagValue = tag.getAttribute('data-value');
+      tag.classList.toggle('active', (this.activeFilters[filterType] || ['all']).includes(tagValue));
+    });
+    document.querySelectorAll('.atlas-view-btn').forEach((button) => {
+      const isActive = button.getAttribute('data-atlas-view') === this.atlasViewMode;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
   }
 
   filterAtlas() {
@@ -2168,6 +2389,8 @@ class VexillaApp {
     } else if (emptyMsg) {
       emptyMsg.remove();
     }
+
+    if (this.currentView === 'encyclopedia') this.updateUrlFromState({ replace: true });
   }
 
   selectFilter(element, event) {
@@ -2208,6 +2431,7 @@ class VexillaApp {
 
     this.playAudioTone(800, 'sine', 0.02);
     this.filterAtlas();
+    this.updateUrlFromState({ replace: true });
   }
 
   formatFeatureLabel(feature) {
@@ -3548,7 +3772,11 @@ class VexillaApp {
     const popoverFact = document.getElementById('map-popover-fact');
     const popoverLearningDetails = document.getElementById('map-popover-learning-details');
     const popoverLocator = document.getElementById('map-popover-locator');
-    if (!svg || this.mapRendered) return;
+    if (!svg) return;
+    if (this.mapRendered) {
+      this.processPendingMapFocus();
+      return;
+    }
 
     if (!window.d3 || !window.topojson) {
       if (loading) loading.textContent = 'Map libraries could not be loaded. Check your internet connection and refresh.';
@@ -4355,6 +4583,7 @@ class VexillaApp {
         const targetTransform = window.d3.zoomIdentity.translate(width / 2 - marker.x * focusScale, height / 2 - marker.y * focusScale).scale(focusScale);
         d3svg.transition().duration(650).ease(window.d3.easeCubicOut).call(zoom.transform, targetTransform);
       };
+      this.focusWorldMapOnFlag = focusMainMapOnFlag;
 
       const zoomInBtn = document.getElementById('map-zoom-in');
       const zoomOutBtn = document.getElementById('map-zoom-out');
@@ -4374,6 +4603,7 @@ class VexillaApp {
       this.mapRendered = true;
       if (loading) loading.remove();
       if (countEl) countEl.textContent = 'Flag Finder';
+      this.processPendingMapFocus();
     } catch (error) {
       console.error('Failed to render world map:', error);
       if (loading) loading.textContent = 'Unable to load the map data right now. Check your connection and refresh.';
@@ -4875,6 +5105,7 @@ window.app = new VexillaApp();
 // Wait for DOM to wire events
 document.addEventListener('DOMContentLoaded', () => {
   window.app.init();
+  window.app.applyUrlState({ replace: true });
 
   // Wire logo link to dashboard click
   const logo = document.getElementById('logo-link');
