@@ -611,6 +611,39 @@ h4 {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(0, 242, 254, 0.55);
+  border-radius: 12px;
+  padding: 0.75rem 1.25rem;
+  color: var(--text-inverse);
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.18);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    filter 0.2s,
+    transform 0.15s,
+    box-shadow 0.2s;
+}
+
+.primary-btn:hover,
+.primary-btn:focus-visible {
+  outline: none;
+  filter: brightness(1.08);
+  box-shadow: 0 0 18px rgba(0, 242, 254, 0.3);
+}
+
+.primary-btn:active {
+  transform: translateY(1px);
+}
+
 .compact-btn {
   flex: 0 0 auto;
   padding: 0.65rem 0.9rem;
@@ -2714,6 +2747,12 @@ h4 {
   filter: drop-shadow(0 0 7px rgba(0, 242, 254, 0.4));
 }
 
+.map-panel.journey-mode .map-country.is-journey-backtrack {
+  fill: rgba(0, 242, 254, 0.12);
+  stroke: rgba(0, 242, 254, 0.78);
+  stroke-width: 1.8;
+}
+
 .map-panel.journey-mode .map-country.is-journey-target {
   fill: rgba(139, 92, 246, 0.24);
   stroke: #a78bfa;
@@ -2734,6 +2773,10 @@ h4 {
 .passport-route-line.is-sea-route {
   stroke: rgba(96, 165, 250, 0.75);
   stroke-dasharray: 5 5;
+}
+
+.passport-route-line.is-backtrack {
+  stroke: rgba(0, 242, 254, 0.7);
 }
 
 .flag-marker {
@@ -2808,6 +2851,13 @@ h4 {
   stroke: var(--accent-cyan);
   stroke-width: 2.2;
   filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.65));
+}
+
+.map-panel.journey-mode .flag-marker.is-journey-backtrack .flag-marker-shadow {
+  fill: rgba(0, 242, 254, 0.16);
+  stroke: var(--accent-cyan);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 7px rgba(0, 242, 254, 0.5));
 }
 
 .map-panel.journey-mode .flag-marker.is-journey-target .flag-marker-shadow {
@@ -2966,6 +3016,14 @@ h4 {
   color: var(--text-muted);
   font-size: 0.76rem;
   line-height: 1.4;
+}
+
+.passport-journey-intro > .compact-btn,
+.passport-journey-status > .compact-btn,
+.passport-learning-card > .compact-btn {
+  min-height: 38px;
+  align-self: center;
+  flex: 0 0 auto;
 }
 
 .map-flag-popover {

@@ -228,6 +228,13 @@ class VexillaApp {
         correct: 0,
         attempts: 0,
       },
+      passportStats: {
+        journeysStarted: 0,
+        totalCorrect: 0,
+        totalAttempts: 0,
+        totalBacktracks: 0,
+        visitedCodes: [],
+      },
     };
 
     try {
@@ -276,6 +283,13 @@ class VexillaApp {
         correct: 0,
         attempts: 0,
       },
+      passportStats: {
+        journeysStarted: 0,
+        totalCorrect: 0,
+        totalAttempts: 0,
+        totalBacktracks: 0,
+        visitedCodes: [],
+      },
     };
 
     if (!rawState || typeof rawState !== 'object') {
@@ -312,6 +326,7 @@ class VexillaApp {
       bestQuizStreak: Number.isFinite(bestQuizStreak) ? Math.max(0, Math.round(bestQuizStreak)) : defaults.bestQuizStreak,
       viewedFlagCodes: cleanCodeList(rawState.viewedFlagCodes),
       passportJourney: this.sanitizePassportJourney(rawState.passportJourney, validCodes),
+      passportStats: this.sanitizePassportStats(rawState.passportStats, validCodes, rawState.passportJourney),
     };
   }
 
@@ -326,6 +341,31 @@ class VexillaApp {
       routeCodes: currentCode && routeCodes[routeCodes.length - 1] !== currentCode ? [...routeCodes, currentCode].slice(-30) : routeCodes,
       correct: Math.max(0, Math.round(Number(journey?.correct) || 0)),
       attempts: Math.max(0, Math.round(Number(journey?.attempts) || 0)),
+    };
+  }
+
+  sanitizePassportStats(stats, validCodes = new Set(this.flags.map((flag) => flag.code)), journey = null) {
+    const cleanCount = (value) => Math.max(0, Math.round(Number(value) || 0));
+    const existingVisitedCodes = Array.isArray(stats?.visitedCodes)
+      ? [...new Set(stats.visitedCodes.filter((code) => typeof code === 'string' && validCodes.has(code)))]
+      : [];
+    const hasRecordedStats =
+      cleanCount(stats?.journeysStarted) > 0 ||
+      cleanCount(stats?.totalCorrect) > 0 ||
+      cleanCount(stats?.totalAttempts) > 0 ||
+      cleanCount(stats?.totalBacktracks) > 0 ||
+      existingVisitedCodes.length > 0;
+    const existingJourney = this.sanitizePassportJourney(journey, validCodes);
+    const inferredBacktracks = existingJourney.routeCodes.reduce(
+      (count, code, index, route) => count + (route.slice(0, index).includes(code) ? 1 : 0),
+      0,
+    );
+    return {
+      journeysStarted: hasRecordedStats ? cleanCount(stats?.journeysStarted) : existingJourney.currentCode ? 1 : 0,
+      totalCorrect: hasRecordedStats ? cleanCount(stats?.totalCorrect) : existingJourney.correct,
+      totalAttempts: hasRecordedStats ? cleanCount(stats?.totalAttempts) : existingJourney.attempts,
+      totalBacktracks: hasRecordedStats ? cleanCount(stats?.totalBacktracks) : inferredBacktracks,
+      visitedCodes: hasRecordedStats ? existingVisitedCodes : existingJourney.visitedCodes,
     };
   }
 
@@ -1682,6 +1722,12 @@ class VexillaApp {
     const due = this.getDueFlags();
     const studiedFlags = this.getFlagStats().filter((item) => item.attempts > 0).length;
     const detailsViewed = this.state.activityCounts?.detailsViewed || 0;
+    const passportStats = this.sanitizePassportStats(this.state.passportStats);
+    const passportContinents = new Set(
+      passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean),
+    ).size;
+    const passportAccuracy = passportStats.totalAttempts ? Math.round((passportStats.totalCorrect / passportStats.totalAttempts) * 100) : null;
+    const passportContinentLabel = passportContinents === 1 ? 'continent' : 'continents';
 
     const insightCards = [
       { label: 'Explorer XP', value: `${explorer.xp} XP`, detail: `${250 - (explorer.xp - explorer.currentLevelXp)} XP to Level ${explorer.level + 1}` },
@@ -1690,6 +1736,13 @@ class VexillaApp {
       { label: 'Strongest continent', value: strongest ? `${strongest.continent}` : 'Not enough data', detail: strongest ? `${strongest.accuracy}% accuracy` : 'Practice a quiz or match round' },
       { label: 'Needs attention', value: weakest ? `${weakest.continent}` : 'Not enough data', detail: weakest ? `${weakest.accuracy}% accuracy` : 'Mistakes will appear here' },
       { label: 'Details viewed', value: `${detailsViewed}`, detail: 'Flag detail panels opened' },
+      {
+        label: 'Passport Journey',
+        value: `${passportStats.visitedCodes.length} destinations`,
+        detail: passportAccuracy == null
+          ? 'Start a journey to earn passport stamps'
+          : `${passportAccuracy}% accuracy across ${passportContinents} ${passportContinentLabel}`,
+      },
     ];
 
     grid.textContent = '';
@@ -3314,6 +3367,14 @@ class VexillaApp {
   }
 
   getPassportJourneyChoices(destinationFlag) {
+    const stableHash = (value) => {
+      let hash = 2166136261;
+      for (const character of value) {
+        hash ^= character.charCodeAt(0);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    };
     const similarity = (flag) => {
       const sharedColors = flag.colors.filter((color) => destinationFlag.colors.includes(color)).length;
       const sharedFeatures = flag.features.filter((feature) => destinationFlag.features.includes(feature)).length;
@@ -3326,11 +3387,14 @@ class VexillaApp {
     };
     const distractors = this.flags
       .filter((flag) => flag.code !== destinationFlag.code && flag.code !== this.state.passportJourney?.currentCode)
-      .map((flag) => ({ flag, score: similarity(flag), tie: Math.random() }))
+      .map((flag) => ({ flag, score: similarity(flag), tie: stableHash(`${destinationFlag.code}:${flag.code}`) }))
       .sort((a, b) => b.score - a.score || a.tie - b.tie)
       .slice(0, 3)
       .map((item) => item.flag);
-    return this.shuffle([destinationFlag, ...distractors]);
+    const originCode = this.state.passportJourney?.currentCode || '';
+    return [destinationFlag, ...distractors].sort(
+      (a, b) => stableHash(`${originCode}:${destinationFlag.code}:${a.code}`) - stableHash(`${originCode}:${destinationFlag.code}:${b.code}`),
+    );
   }
 
   toggleMapChallenge() {
@@ -4012,16 +4076,66 @@ class VexillaApp {
         const a = Math.sin(latDelta / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(lngDelta / 2) ** 2;
         return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       };
-      const isolatedJourneyMarkers = markers.filter((marker) => (journeyRoutes.get(marker.flag.code)?.size || 0) === 0);
-      isolatedJourneyMarkers.forEach((marker) => {
+      const minimumJourneyConnections = 3;
+      markers.forEach((marker) => {
+        const existingRoutes = journeyRoutes.get(marker.flag.code);
+        const routesNeeded = minimumJourneyConnections - (existingRoutes?.size || 0);
+        if (routesNeeded <= 0) return;
         const origin = markerLngLat.get(marker.flag.code);
         const nearby = markers
-          .filter((candidate) => candidate.flag.code !== marker.flag.code && candidate.flag.continent === marker.flag.continent)
+          .filter(
+            (candidate) =>
+              candidate.flag.code !== marker.flag.code &&
+              candidate.flag.continent === marker.flag.continent &&
+              !existingRoutes?.has(candidate.flag.code),
+          )
           .map((candidate) => ({ candidate, distance: geographicDistance(origin, markerLngLat.get(candidate.flag.code)) }))
           .sort((a, b) => a.distance - b.distance)
-          .slice(0, 3);
+          .slice(0, routesNeeded);
         nearby.forEach(({ candidate }) => addJourneyRoute(marker.flag.code, candidate.flag.code));
       });
+      const getJourneyComponents = () => {
+        const unvisited = new Set(markers.map((marker) => marker.flag.code));
+        const components = [];
+        while (unvisited.size) {
+          const startCode = unvisited.values().next().value;
+          const component = [];
+          const queue = [startCode];
+          unvisited.delete(startCode);
+          while (queue.length) {
+            const code = queue.shift();
+            component.push(code);
+            journeyRoutes.get(code)?.forEach((neighborCode) => {
+              if (!unvisited.has(neighborCode) || !markerByCode.has(neighborCode)) return;
+              unvisited.delete(neighborCode);
+              queue.push(neighborCode);
+            });
+          }
+          components.push(component);
+        }
+        return components;
+      };
+      let journeyComponents = getJourneyComponents();
+      while (journeyComponents.length > 1) {
+        let closestBridge = null;
+        journeyComponents.forEach((fromComponent, fromIndex) => {
+          journeyComponents.slice(fromIndex + 1).forEach((toComponent) => {
+            fromComponent.forEach((fromCode) => {
+              toComponent.forEach((toCode) => {
+                const distance = geographicDistance(markerLngLat.get(fromCode), markerLngLat.get(toCode));
+                if (!closestBridge || distance < closestBridge.distance) closestBridge = { fromCode, toCode, distance };
+              });
+            });
+          });
+        });
+        if (!closestBridge) break;
+        addJourneyRoute(closestBridge.fromCode, closestBridge.toCode);
+        journeyComponents = getJourneyComponents();
+      }
+      // Country centroids can obscure short coastal crossings; keep obvious regional gateways available.
+      [
+        ['tt', 've'],
+      ].forEach(([fromCode, toCode]) => addJourneyRoute(fromCode, toCode));
       let handlePassportDestination = () => false;
       const clickableChallengeCodes = new Set();
       countryLayer.selectAll('.map-country').each((country) => {
@@ -4519,8 +4633,10 @@ class VexillaApp {
 
       let activePopoverFlagCode = '';
       const blankPopoverFlagSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
+      const canShowPopoverForFlag = (flag) =>
+        this.mapMode === 'explore' || (this.mapMode === 'journey' && this.state.passportJourney?.visitedCodes?.includes(flag.code));
       const showPopover = (flag, clientX, clientY) => {
-        if (this.mapMode !== 'explore') {
+        if (!canShowPopoverForFlag(flag)) {
           hidePopover();
           return;
         }
@@ -4575,7 +4691,11 @@ class VexillaApp {
       };
 
       const showPopoverForMarker = (event, d) => {
-        if (this.mapMode !== 'explore') return;
+        if (!canShowPopoverForFlag(d.flag)) {
+          hidePopover();
+          clearCountryHighlight();
+          return;
+        }
         highlightCountryByFlagCode(d.flag.code);
         showPopover(d.flag, event.clientX, event.clientY);
       };
@@ -4592,6 +4712,9 @@ class VexillaApp {
         .attr('tabindex', 0)
         .attr('role', 'button')
         .attr('aria-label', (d) => `${d.flag.name} flag`)
+        .attr('data-flag-code', (d) => d.flag.code)
+        .attr('data-journey-connections', (d) => String(journeyRoutes.get(d.flag.code)?.size || 0))
+        .attr('data-journey-routes', (d) => [...(journeyRoutes.get(d.flag.code) || [])].sort().join(','))
         .attr('transform', (d) => `translate(${d.x}, ${d.y})`)
         .on('pointerdown.passport', (event) => {
           event.currentTarget._passportPointerStart = { x: event.clientX, y: event.clientY };
@@ -4790,6 +4913,10 @@ class VexillaApp {
         this.state.passportJourney = this.sanitizePassportJourney(this.state.passportJourney);
         return this.state.passportJourney;
       };
+      const getPassportStats = () => {
+        this.state.passportStats = this.sanitizePassportStats(this.state.passportStats);
+        return this.state.passportStats;
+      };
       const getJourneyNeighborCodes = (flagCode) => [...(journeyRoutes.get(flagCode) || [])].filter((code) => markerByCode.has(code));
       const cancelJourneyQuestion = () => {
         if (journeyAdvanceTimeout) {
@@ -4807,16 +4934,27 @@ class VexillaApp {
         const journey = getJourneyState();
         const currentCode = journey.currentCode;
         const neighborCodes = new Set(getJourneyNeighborCodes(currentCode));
+        const visitedCodes = new Set(journey.visitedCodes);
         countryLayer
           .selectAll('.map-country')
           .classed('is-journey-current', (country) => getFlagForCountry(country)?.code === currentCode)
-          .classed('is-journey-option', (country) => neighborCodes.has(getFlagForCountry(country)?.code));
+          .classed('is-journey-option', (country) => neighborCodes.has(getFlagForCountry(country)?.code))
+          .classed('is-journey-backtrack', (country) => {
+            const code = getFlagForCountry(country)?.code;
+            return neighborCodes.has(code) && visitedCodes.has(code) && code !== currentCode;
+          });
         markerGroups
           .classed('is-journey-current', (marker) => marker.flag.code === currentCode)
           .classed('is-journey-option', (marker) => neighborCodes.has(marker.flag.code))
-          .classed('is-journey-revealed', (marker) => journey.visitedCodes.includes(marker.flag.code))
+          .classed('is-journey-backtrack', (marker) => neighborCodes.has(marker.flag.code) && visitedCodes.has(marker.flag.code) && marker.flag.code !== currentCode)
+          .classed('is-journey-revealed', (marker) => visitedCodes.has(marker.flag.code))
           .attr('tabindex', (marker) => (neighborCodes.has(marker.flag.code) ? 0 : -1))
-          .attr('aria-hidden', (marker) => (neighborCodes.has(marker.flag.code) ? null : 'true'));
+          .attr('aria-hidden', (marker) => (neighborCodes.has(marker.flag.code) ? null : 'true'))
+          .attr('aria-label', (marker) =>
+            neighborCodes.has(marker.flag.code) && visitedCodes.has(marker.flag.code)
+              ? `${marker.flag.name} flag, visited. Select to backtrack without a quiz.`
+              : `${marker.flag.name} flag`,
+          );
 
         const currentMarker = markerByCode.get(currentCode);
         const routeLines = currentMarker
@@ -4831,6 +4969,7 @@ class VexillaApp {
                   x2: destination.x,
                   y2: destination.y,
                   isSeaRoute: !landJourneyRoutes.get(currentCode)?.has(code),
+                  isBacktrack: visitedCodes.has(code),
                 };
               })
               .filter(Boolean)
@@ -4839,7 +4978,7 @@ class VexillaApp {
           .selectAll('line')
           .data(this.mapMode === 'journey' ? routeLines : [], (route) => route.code)
           .join('line')
-          .attr('class', (route) => `passport-route-line${route.isSeaRoute ? ' is-sea-route' : ''}`)
+          .attr('class', (route) => `passport-route-line${route.isSeaRoute ? ' is-sea-route' : ''}${route.isBacktrack ? ' is-backtrack' : ''}`)
           .attr('x1', (route) => route.x1)
           .attr('y1', (route) => route.y1)
           .attr('x2', (route) => route.x2)
@@ -4862,22 +5001,37 @@ class VexillaApp {
           .map((code) => this.flags.find((flag) => flag.code === code)?.name)
           .filter(Boolean);
         if (journeyRouteTrail) journeyRouteTrail.textContent = routeNames.join(' -> ');
-        if (journeyRouteHint) journeyRouteHint.textContent = `${neighborCodes.size} possible destinations. Choose a highlighted country or flag marker.`;
+        if (journeyRouteHint) {
+          const newDestinationCount = [...neighborCodes].filter((code) => !visitedCodes.has(code)).length;
+          const backtrackCount = neighborCodes.size - newDestinationCount;
+          if (!newDestinationCount && backtrackCount) {
+            journeyRouteHint.textContent = 'No new borders here. Choose a visited flag to backtrack without another quiz.';
+          } else {
+            const destinationLabel = newDestinationCount === 1 ? 'new destination' : 'new destinations';
+            journeyRouteHint.textContent = `${newDestinationCount} ${destinationLabel}. Visited flags are free to revisit for backtracking.`;
+          }
+        }
         if (journeyVisitedCount) journeyVisitedCount.textContent = String(new Set(journey.visitedCodes).size);
         if (journeyCleanCount) journeyCleanCount.textContent = `${journey.correct} / ${journey.attempts}`;
       };
-      const movePassportToDestination = () => {
-        if (!pendingJourneyDestination) return;
-        const destination = pendingJourneyDestination;
+      const travelPassportToFlag = (destination) => {
         const journey = getJourneyState();
+        const passportStats = getPassportStats();
+        const isBacktrack = journey.visitedCodes.includes(destination.code);
         journey.currentCode = destination.code;
         if (!journey.visitedCodes.includes(destination.code)) journey.visitedCodes.push(destination.code);
         journey.routeCodes.push(destination.code);
         journey.routeCodes = journey.routeCodes.slice(-30);
+        if (!passportStats.visitedCodes.includes(destination.code)) passportStats.visitedCodes.push(destination.code);
+        if (isBacktrack) passportStats.totalBacktracks += 1;
         this.saveState();
         cancelJourneyQuestion();
         renderJourneyMapState();
         focusMainMapOnFlag(destination);
+        this.checkAchievements();
+      };
+      const movePassportToDestination = () => {
+        if (pendingJourneyDestination) travelPassportToFlag(pendingJourneyDestination);
       };
       const checkPassportAnswer = (button, selectedFlag, destinationFlag) => {
         if (!pendingJourneyDestination || destinationFlag.code !== pendingJourneyDestination.code) return;
@@ -4885,11 +5039,14 @@ class VexillaApp {
         answerButtons.forEach((answerButton) => (answerButton.disabled = true));
         const isCorrect = selectedFlag.code === destinationFlag.code;
         const journey = getJourneyState();
+        const passportStats = getPassportStats();
         journey.attempts += 1;
+        passportStats.totalAttempts += 1;
         pendingJourneyWasCorrect = isCorrect;
         this.state.activityCounts.map = (this.state.activityCounts.map || 0) + 1;
         if (isCorrect) {
           journey.correct += 1;
+          passportStats.totalCorrect += 1;
           button.classList.add('correct');
           this.recordFlagResult(destinationFlag.code, 'correct');
           this.awardXp(8);
@@ -4914,11 +5071,13 @@ class VexillaApp {
           window.requestAnimationFrame(() => journeyContinueButton?.focus());
         }
         renderJourneyMapState();
+        this.checkAchievements();
       };
       const showPassportQuestion = (destinationFlag) => {
         const journey = getJourneyState();
         const currentFlag = this.flags.find((flag) => flag.code === journey.currentCode);
         if (!currentFlag || !journeyQuestion || !journeyAnswerGrid) return;
+        if (pendingJourneyDestination?.code === destinationFlag.code && !journeyQuestion.hidden) return;
         cancelJourneyQuestion();
         pendingJourneyDestination = destinationFlag;
         journeyQuestion.hidden = false;
@@ -4952,16 +5111,17 @@ class VexillaApp {
           if (journeyRouteHint) journeyRouteHint.textContent = `${destinationFlag.name} is not connected to this stop. Choose a highlighted destination.`;
           return false;
         }
+        if (journey.visitedCodes.includes(destinationFlag.code)) {
+          travelPassportToFlag(destinationFlag);
+          return true;
+        }
         showPassportQuestion(destinationFlag);
         return true;
       };
       const startPassportJourney = (forceRestart = false) => {
         const journey = getJourneyState();
         if (forceRestart || !journey.currentCode || !markerByCode.has(journey.currentCode)) {
-          const preferredFlags = this.flags.filter(
-            (flag) => flag.continent === this.state.preferredContinent && markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length,
-          );
-          const candidates = preferredFlags.length ? preferredFlags : this.flags.filter((flag) => markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length);
+          const candidates = this.flags.filter((flag) => markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length >= minimumJourneyConnections);
           const startFlag = candidates[Math.floor(Math.random() * candidates.length)];
           if (!startFlag) return;
           this.state.passportJourney = {
@@ -4971,8 +5131,12 @@ class VexillaApp {
             correct: 0,
             attempts: 0,
           };
+          const passportStats = getPassportStats();
+          passportStats.journeysStarted += 1;
+          if (!passportStats.visitedCodes.includes(startFlag.code)) passportStats.visitedCodes.push(startFlag.code);
           this.saveState();
           focusMainMapOnFlag(startFlag);
+          this.checkAchievements();
         }
         cancelJourneyQuestion();
         renderJourneyMapState();
@@ -5001,8 +5165,12 @@ class VexillaApp {
           if (currentFlag) focusMainMapOnFlag(currentFlag);
         } else {
           cancelJourneyQuestion();
-          countryLayer.selectAll('.map-country').classed('is-journey-current is-journey-option', false);
-          markerGroups.classed('is-journey-current is-journey-option is-journey-revealed', false).attr('tabindex', 0).attr('aria-hidden', null);
+          countryLayer.selectAll('.map-country').classed('is-journey-current is-journey-option is-journey-backtrack', false);
+          markerGroups
+            .classed('is-journey-current is-journey-option is-journey-backtrack is-journey-revealed', false)
+            .attr('tabindex', 0)
+            .attr('aria-hidden', null)
+            .attr('aria-label', (marker) => `${marker.flag.name} flag`);
           journeyRouteLayer.selectAll('line').remove();
         }
         if (isChallenge) {
@@ -5098,6 +5266,7 @@ class VexillaApp {
 
   getAchievementGroup(id) {
     if (id.startsWith('match_')) return 'Flag Match';
+    if (id.startsWith('passport_')) return 'Passport Journey';
     if (id.startsWith('quiz_') || id === 'perfect_quiz') return 'Quiz Milestones';
     if (id.includes('sweep') || id.includes('complete') || id.includes('starter')) return 'Regional Mastery';
     if (id.startsWith('streak_')) return 'Daily Streaks';
@@ -5122,6 +5291,10 @@ class VexillaApp {
 
   getAchievementProgress(achievement) {
     const learnedSet = new Set(this.state.learnedFlags);
+    const passportStats = this.sanitizePassportStats(this.state.passportStats);
+    const passportContinentCount = new Set(
+      passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean),
+    ).size;
     const countDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty && learnedSet.has(flag.code)).length;
     const totalDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty).length;
     const countContinent = (continent) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length;
@@ -5163,6 +5336,14 @@ class VexillaApp {
       review_master: [this.state.needReviewFlags.length, 5],
       review_stack: [this.state.needReviewFlags.length, 15],
       clean_slate: [this.state.learnedFlags.length, 25],
+      passport_first_stamp: [passportStats.totalCorrect, 1],
+      passport_border_hopper: [passportStats.totalCorrect, 10],
+      passport_veteran: [passportStats.totalCorrect, 50],
+      passport_trailblazer: [passportStats.visitedCodes.length, 25],
+      passport_continent_hopper: [passportContinentCount, 3],
+      passport_world_tour: [passportContinentCount, 5],
+      passport_pathfinder: [passportStats.totalBacktracks, 5],
+      passport_frequent_traveler: [passportStats.journeysStarted, 5],
     };
     const values = progressById[achievement.id];
     if (!values) return binary();
@@ -5192,6 +5373,10 @@ class VexillaApp {
     const masteredDifficulty = (difficulty) => masteredAll(this.flags.filter((flag) => flag.difficulty === difficulty));
     const masteredContinent = (continent) => masteredAll(this.flags.filter((flag) => flag.continent === continent));
     const masteredContinentCount = (continent, count) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length >= count;
+    const passportStats = this.sanitizePassportStats(this.state.passportStats);
+    const passportContinentCount = new Set(
+      passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean),
+    ).size;
 
     return [
       {
@@ -5396,6 +5581,62 @@ class VexillaApp {
         desc: 'Complete any Flag Match game.',
         icon: '🧩',
         check: () => this.matchTotalPairs > 0 && this.pairsLeft === 0,
+      },
+      {
+        id: 'passport_first_stamp',
+        title: 'First Passport Stamp',
+        desc: 'Identify your first destination correctly in Passport Journey.',
+        icon: '🛂',
+        check: () => passportStats.totalCorrect >= 1,
+      },
+      {
+        id: 'passport_border_hopper',
+        title: 'Border Hopper',
+        desc: 'Identify 10 destinations correctly in Passport Journey.',
+        icon: '🚏',
+        check: () => passportStats.totalCorrect >= 10,
+      },
+      {
+        id: 'passport_veteran',
+        title: 'Seasoned Traveler',
+        desc: 'Identify 50 destinations correctly in Passport Journey.',
+        icon: '🧳',
+        check: () => passportStats.totalCorrect >= 50,
+      },
+      {
+        id: 'passport_trailblazer',
+        title: 'Trailblazer',
+        desc: 'Visit 25 different destinations across your journeys.',
+        icon: '🥾',
+        check: () => passportStats.visitedCodes.length >= 25,
+      },
+      {
+        id: 'passport_continent_hopper',
+        title: 'Continent Hopper',
+        desc: 'Visit destinations on 3 different continents.',
+        icon: '🌐',
+        check: () => passportContinentCount >= 3,
+      },
+      {
+        id: 'passport_world_tour',
+        title: 'World Tour',
+        desc: 'Visit destinations on all 5 continents.',
+        icon: '✈️',
+        check: () => passportContinentCount >= 5,
+      },
+      {
+        id: 'passport_pathfinder',
+        title: 'Pathfinder',
+        desc: 'Use a visited route to backtrack 5 times.',
+        icon: '↩️',
+        check: () => passportStats.totalBacktracks >= 5,
+      },
+      {
+        id: 'passport_frequent_traveler',
+        title: 'Frequent Traveler',
+        desc: 'Start 5 different Passport Journeys.',
+        icon: '🎫',
+        check: () => passportStats.journeysStarted >= 5,
       },
       {
         id: 'streak_3',
