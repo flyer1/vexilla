@@ -815,49 +815,88 @@
                 <span class="map-kicker">Mercator Projection</span>
                 <h2 class="map-title">Flag Geography</h2>
               </div>
-              <div class="map-stats">
-                <button class="map-stats-button" id="map-unplaced-toggle" type="button" aria-expanded="false" aria-controls="map-unplaced-panel">
-                  <span id="map-match-count">Loading map...</span>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
-                </button>
-                <div class="map-unplaced-panel" id="map-unplaced-panel" aria-hidden="true">
-                  <div class="map-unplaced-browser">
-                    <label class="map-unplaced-search">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="11" cy="11" r="7" />
-                        <line x1="16.5" y1="16.5" x2="21" y2="21" />
-                      </svg>
-                      <input id="map-flag-search" type="search" placeholder="Search flags, capitals, continents..." autocomplete="off" />
-                    </label>
-                    <div class="map-unplaced-list" id="map-unplaced-list"></div>
-                  </div>
-                  <div class="map-unplaced-detail" id="map-unplaced-detail"></div>
-                </div>
+              <div class="map-mode-switch" role="group" aria-label="World map mode">
+                <button class="map-mode-button active" id="map-mode-explore" type="button" aria-pressed="true" onclick="app.setMapMode('explore')">Explore</button>
+                <button class="map-mode-button" id="map-mode-journey" type="button" aria-pressed="false" onclick="app.setMapMode('journey')">Passport Journey</button>
+                <button class="map-mode-button" id="map-mode-challenge" type="button" aria-pressed="false" onclick="app.setMapMode('challenge')">Map Challenge</button>
               </div>
-              <div class="map-challenge-controls">
-                <button class="secondary-btn compact-btn" id="map-challenge-toggle" type="button" onclick="app.toggleMapChallenge()">Map challenge</button>
-                <span class="map-challenge-prompt" id="map-challenge-prompt" aria-live="polite"></span>
+              <div class="map-toolbar-actions">
+                <div class="map-controls" aria-label="Map controls">
+                  <button class="map-control-btn" id="map-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">
+                    <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                  </button>
+                  <button class="map-control-btn" id="map-zoom-reset" type="button" aria-label="Reset zoom" title="Reset zoom">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M3 12a9 9 0 1 0 3-6.7" />
+                      <polyline points="3 3 3 9 9 9" />
+                    </svg>
+                  </button>
+                  <button class="map-control-btn" id="map-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">
+                    <svg viewBox="0 0 24 24">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                  <span class="map-zoom-value" id="map-zoom-value">100%</span>
+                </div>
+                <div class="map-stats">
+                  <button class="map-stats-button" id="map-unplaced-toggle" type="button" aria-expanded="false" aria-controls="map-unplaced-panel">
+                    <span id="map-match-count">Loading map...</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                  </button>
+                  <div class="map-unplaced-panel" id="map-unplaced-panel" aria-hidden="true">
+                    <div class="map-unplaced-browser">
+                      <label class="map-unplaced-search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="11" cy="11" r="7" />
+                          <line x1="16.5" y1="16.5" x2="21" y2="21" />
+                        </svg>
+                        <input id="map-flag-search" type="search" placeholder="Search flags, capitals, continents..." autocomplete="off" />
+                      </label>
+                      <div class="map-unplaced-list" id="map-unplaced-list"></div>
+                    </div>
+                    <div class="map-unplaced-detail" id="map-unplaced-detail"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="map-controls" aria-label="Map controls">
-              <button class="map-control-btn" id="map-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">
-                <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
-              <button class="map-control-btn" id="map-zoom-reset" type="button" aria-label="Reset zoom" title="Reset zoom">
-                <svg viewBox="0 0 24 24">
-                  <path d="M3 12a9 9 0 1 0 3-6.7" />
-                  <polyline points="3 3 3 9 9 9" />
-                </svg>
-              </button>
-              <button class="map-control-btn" id="map-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">
-                <svg viewBox="0 0 24 24">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-              <span class="map-zoom-value" id="map-zoom-value">100%</span>
-            </div>
+            <section class="passport-journey-panel" id="passport-journey-panel" aria-label="Passport Journey" hidden>
+              <div class="passport-journey-intro" id="passport-journey-intro">
+                <div>
+                  <span class="map-kicker">Choose your own route</span>
+                  <h3>Travel by recognizing each destination's flag</h3>
+                  <p>Start in your preferred continent, then select a highlighted neighbor or nearby sea route.</p>
+                </div>
+                <button class="primary-btn compact-btn" id="passport-start-button" type="button" onclick="app.startPassportJourney()">Start journey</button>
+              </div>
+              <div class="passport-journey-status" id="passport-journey-status" hidden>
+                <div class="passport-current-country">
+                  <img id="passport-current-flag" src="" alt="" />
+                  <div>
+                    <span class="map-kicker">Current stop</span>
+                    <strong id="passport-current-name"></strong>
+                  </div>
+                </div>
+                <div class="passport-route-copy">
+                  <span id="passport-route-trail"></span>
+                  <small id="passport-route-hint">Choose a highlighted destination on the map.</small>
+                </div>
+                <div class="passport-journey-stats" aria-label="Journey statistics">
+                  <span><strong id="passport-visited-count">0</strong> visited</span>
+                  <span><strong id="passport-clean-count">0</strong> clean</span>
+                </div>
+                <button class="secondary-btn compact-btn" type="button" onclick="app.startPassportJourney(true)">New journey</button>
+              </div>
+            </section>
+
+            <section class="map-challenge-status" id="map-challenge-status" aria-label="Map Challenge" hidden>
+              <div>
+                <span class="map-kicker">Geography challenge</span>
+                <strong id="map-challenge-prompt" aria-live="polite"></strong>
+              </div>
+              <small>Click the matching country boundary. Switch back to Explore whenever you are finished.</small>
+            </section>
 
             <div class="map-scroll-container" id="world-map-scroll">
               <div class="map-loading" id="map-loading">Loading country boundaries...</div>
@@ -872,6 +911,26 @@
                   <div class="flag-locator-map popover" id="map-popover-locator"></div>
                 </div>
               </div>
+              <section class="passport-question" id="passport-question" aria-live="polite" hidden>
+                <div class="passport-question-heading">
+                  <div>
+                    <span class="map-kicker">Next border crossing</span>
+                    <h3 id="passport-question-title">Which flag belongs to this destination?</h3>
+                    <p id="passport-question-route"></p>
+                  </div>
+                  <button class="passport-question-close" type="button" aria-label="Cancel this destination" title="Cancel destination" onclick="app.cancelPassportQuestion()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                  </button>
+                </div>
+                <div class="passport-answer-grid" id="passport-answer-grid"></div>
+                <div class="passport-learning-card" id="passport-learning-card" hidden>
+                  <div>
+                    <strong id="passport-learning-title"></strong>
+                    <p id="passport-learning-copy"></p>
+                  </div>
+                  <button class="primary-btn compact-btn" id="passport-continue-button" type="button" onclick="app.continuePassportJourney()">Continue journey</button>
+                </div>
+              </section>
             </div>
           </div>
         </section>
@@ -984,7 +1043,8 @@
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">+</kbd><span>Zoom map in</span></div>
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">-</kbd><span>Zoom map out</span></div>
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">0</kbd><span>Reset map zoom</span></div>
-                  <div class="settings-shortcut-line"><kbd class="shortcut-key">M</kbd><span>Start map challenge</span></div>
+                  <div class="settings-shortcut-line"><kbd class="shortcut-key">M</kbd><span>Toggle Map Challenge</span></div>
+                  <div class="settings-shortcut-line"><kbd class="shortcut-key">J</kbd><span>Toggle Passport Journey</span></div>
                 </div>
                 <div class="settings-shortcut-group">
                   <span class="settings-shortcut-group-label">General</span>

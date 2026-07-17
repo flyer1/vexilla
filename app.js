@@ -80,6 +80,11 @@ class VexillaApp {
     this.mapRouteFlagCode = '';
     this.mapChallengeActive = false;
     this.mapChallengeScore = 0;
+    this.mapMode = 'explore';
+    this.mapJourneySetMode = null;
+    this.mapJourneyStart = null;
+    this.mapJourneyCancelQuestion = null;
+    this.mapJourneyContinue = null;
 
     // Web Audio Context (lazy-loaded on user interaction)
     this.audioCtx = null;
@@ -166,7 +171,7 @@ class VexillaApp {
     let failedCount = 0;
 
     try {
-      const cache = await caches.open('vexilla-offline-v1');
+      const cache = await caches.open('vexilla-offline-v2');
       for (const url of urls) {
         try {
           const request = new Request(url, { mode: url.startsWith('http') ? 'cors' : 'same-origin' });
@@ -216,6 +221,13 @@ class VexillaApp {
       activityCounts: {},
       bestQuizStreak: 0,
       viewedFlagCodes: [],
+      passportJourney: {
+        currentCode: '',
+        visitedCodes: [],
+        routeCodes: [],
+        correct: 0,
+        attempts: 0,
+      },
     };
 
     try {
@@ -257,6 +269,13 @@ class VexillaApp {
       activityCounts: {},
       bestQuizStreak: 0,
       viewedFlagCodes: [],
+      passportJourney: {
+        currentCode: '',
+        visitedCodes: [],
+        routeCodes: [],
+        correct: 0,
+        attempts: 0,
+      },
     };
 
     if (!rawState || typeof rawState !== 'object') {
@@ -292,6 +311,21 @@ class VexillaApp {
       activityCounts: this.sanitizeActivityCounts(rawState.activityCounts),
       bestQuizStreak: Number.isFinite(bestQuizStreak) ? Math.max(0, Math.round(bestQuizStreak)) : defaults.bestQuizStreak,
       viewedFlagCodes: cleanCodeList(rawState.viewedFlagCodes),
+      passportJourney: this.sanitizePassportJourney(rawState.passportJourney, validCodes),
+    };
+  }
+
+  sanitizePassportJourney(journey, validCodes = new Set(this.flags.map((flag) => flag.code))) {
+    const cleanCodes = (value, maxLength = 197) => (Array.isArray(value) ? value.filter((code) => typeof code === 'string' && validCodes.has(code)).slice(-maxLength) : []);
+    const currentCode = typeof journey?.currentCode === 'string' && validCodes.has(journey.currentCode) ? journey.currentCode : '';
+    const visitedCodes = [...new Set(cleanCodes(journey?.visitedCodes))];
+    const routeCodes = cleanCodes(journey?.routeCodes?.length ? journey.routeCodes : journey?.visitedCodes, 30);
+    return {
+      currentCode,
+      visitedCodes: currentCode && !visitedCodes.includes(currentCode) ? [...visitedCodes, currentCode] : visitedCodes,
+      routeCodes: currentCode && routeCodes[routeCodes.length - 1] !== currentCode ? [...routeCodes, currentCode].slice(-30) : routeCodes,
+      correct: Math.max(0, Math.round(Number(journey?.correct) || 0)),
+      attempts: Math.max(0, Math.round(Number(journey?.attempts) || 0)),
     };
   }
 
@@ -720,6 +754,7 @@ class VexillaApp {
     } else if (view === 'map') {
       const flagCode = this.pendingMapFocusCode || this.mapRouteFlagCode;
       if (flagCode) params.set('flag', flagCode);
+      if (this.mapMode !== 'explore') params.set('mapMode', this.mapMode);
     }
 
     url.search = params.toString();
@@ -764,6 +799,7 @@ class VexillaApp {
       } else if (view === 'match') {
         this.activeMatchContinents = this.decodeSelection(params.get('continents'), continents);
       } else if (view === 'map') {
+        this.mapMode = ['journey', 'challenge'].includes(params.get('mapMode')) ? params.get('mapMode') : 'explore';
         const flagCode = params.get('flag');
         if (flagCode && this.flags.some((flag) => flag.code === flagCode)) {
           this.pendingMapFocusCode = flagCode;
@@ -794,6 +830,7 @@ class VexillaApp {
       this.updateContinentControls('match');
     } else if (view === 'map') {
       this.processPendingMapFocus();
+      this.mapJourneySetMode?.(this.mapMode);
     }
   }
 
@@ -3089,6 +3126,7 @@ class VexillaApp {
 
       if (event.key === 'Escape') {
         this.closeMapFinderPanel();
+        this.cancelPassportQuestion();
         this.closeModal();
         return;
       }
@@ -3160,7 +3198,7 @@ class VexillaApp {
   showKeyboardShortcuts() {
     this.spawnToast(
       'Keyboard shortcuts',
-      'Alt+1-7 views, Alt+S settings, A-D quiz answers, F flip card, K learned, R review, / search or flag finder, + - 0 map zoom.',
+      'Alt+1-7 views, Alt+S settings, A-D answers, F flip card, K learned, R review, / search or flag finder, J Passport Journey, + - 0 map zoom.',
       '⌨',
       12000,
     );
@@ -3213,6 +3251,13 @@ class VexillaApp {
     }
 
     if (this.currentView === 'map') {
+      const journeyAnswers = document.querySelectorAll('#passport-question:not([hidden]) .passport-answer-button:not(:disabled)');
+      const journeyAnswerIndex = ['a', 'b', 'c', 'd'].indexOf(key);
+      if (journeyAnswerIndex >= 0 && journeyAnswers[journeyAnswerIndex] instanceof HTMLButtonElement) {
+        event.preventDefault();
+        journeyAnswers[journeyAnswerIndex].click();
+        return;
+      }
       if (event.key === '+' || event.key === '=') {
         document.getElementById('map-zoom-in')?.click();
       } else if (event.key === '-') {
@@ -3221,8 +3266,10 @@ class VexillaApp {
         document.getElementById('map-zoom-reset')?.click();
       } else if (event.key === '/') {
         document.getElementById('map-unplaced-toggle')?.click();
+      } else if (key === 'j') {
+        this.setMapMode(this.mapMode === 'journey' ? 'explore' : 'journey');
       } else if (key === 'm') {
-        document.getElementById('map-challenge-toggle')?.click();
+        this.setMapMode(this.mapMode === 'challenge' ? 'explore' : 'challenge');
       } else {
         return;
       }
@@ -3241,13 +3288,58 @@ class VexillaApp {
   }
 
   // --- WORLD MAP ---
+  async setMapMode(mode) {
+    if (!['explore', 'journey', 'challenge'].includes(mode)) return;
+    this.mapMode = mode;
+    await this.renderWorldMap();
+    this.mapJourneySetMode?.(mode);
+    this.updateUrlFromState({ replace: true });
+  }
+
+  startPassportJourney(forceRestart = false) {
+    if (!this.mapJourneyStart) {
+      this.spawnToast('Preparing Passport Journey', 'The map needs a moment to finish loading first.', '◈');
+      this.renderWorldMap();
+      return;
+    }
+    this.mapJourneyStart(Boolean(forceRestart));
+  }
+
+  cancelPassportQuestion() {
+    this.mapJourneyCancelQuestion?.();
+  }
+
+  continuePassportJourney() {
+    this.mapJourneyContinue?.();
+  }
+
+  getPassportJourneyChoices(destinationFlag) {
+    const similarity = (flag) => {
+      const sharedColors = flag.colors.filter((color) => destinationFlag.colors.includes(color)).length;
+      const sharedFeatures = flag.features.filter((feature) => destinationFlag.features.includes(feature)).length;
+      const sameContinent = flag.continent === destinationFlag.continent ? 1 : 0;
+      const sameColorCount = flag.colors.length === destinationFlag.colors.length ? 1 : 0;
+      const sameColorSet = sameColorCount && flag.colors.every((color) => destinationFlag.colors.includes(color)) ? 1 : 0;
+      const sameFeatureSet = flag.features.length === destinationFlag.features.length && flag.features.every((feature) => destinationFlag.features.includes(feature)) ? 1 : 0;
+      const sameFamily = this.getFlagFamily(flag) && this.getFlagFamily(flag) === this.getFlagFamily(destinationFlag) ? 1 : 0;
+      return sharedColors * 6 + sharedFeatures * 7 + sameContinent * 2 + sameColorSet * 10 + sameFeatureSet * 8 + sameFamily * 12;
+    };
+    const distractors = this.flags
+      .filter((flag) => flag.code !== destinationFlag.code && flag.code !== this.state.passportJourney?.currentCode)
+      .map((flag) => ({ flag, score: similarity(flag), tie: Math.random() }))
+      .sort((a, b) => b.score - a.score || a.tie - b.tie)
+      .slice(0, 3)
+      .map((item) => item.flag);
+    return this.shuffle([destinationFlag, ...distractors]);
+  }
+
   toggleMapChallenge() {
     if (!this.mapRendered || !this.mapChallengeNext) {
       this.switchView('map');
       this.spawnToast('Preparing map challenge', 'The map needs a moment to finish loading first.', '◈');
       return;
     }
-    this.mapChallengeNext();
+    this.setMapMode(this.mapMode === 'challenge' ? 'explore' : 'challenge');
   }
 
   normalizeCountryName(name) {
@@ -3888,6 +3980,49 @@ class VexillaApp {
         .filter(Boolean);
       const markers = [...polygonMarkers, ...coordinateMarkers];
       const markerByCode = new Map(markers.map((marker) => [marker.flag.code, marker]));
+      const landJourneyRoutes = new Map(this.flags.map((flag) => [flag.code, new Set()]));
+      const journeyRoutes = new Map(this.flags.map((flag) => [flag.code, new Set()]));
+      const addJourneyRoute = (fromCode, toCode, isLandRoute = false) => {
+        if (!fromCode || !toCode || fromCode === toCode) return;
+        journeyRoutes.get(fromCode)?.add(toCode);
+        journeyRoutes.get(toCode)?.add(fromCode);
+        if (isLandRoute) {
+          landJourneyRoutes.get(fromCode)?.add(toCode);
+          landJourneyRoutes.get(toCode)?.add(fromCode);
+        }
+      };
+      if (typeof window.topojson.neighbors === 'function') {
+        const topologyNeighbors = window.topojson.neighbors(world.objects.countries.geometries);
+        topologyNeighbors.forEach((neighborIndexes, countryIndex) => {
+          const fromFlag = getFlagForCountry(countries[countryIndex]);
+          if (!fromFlag) return;
+          neighborIndexes.forEach((neighborIndex) => {
+            const toFlag = getFlagForCountry(countries[neighborIndex]);
+            if (toFlag) addJourneyRoute(fromFlag.code, toFlag.code, true);
+          });
+        });
+      }
+      const markerLngLat = new Map(markers.map((marker) => [marker.flag.code, projection.invert([marker.x, marker.y])]));
+      const geographicDistance = (first, second) => {
+        const toRadians = (value) => (value * Math.PI) / 180;
+        const [lng1, lat1] = first;
+        const [lng2, lat2] = second;
+        const latDelta = toRadians(lat2 - lat1);
+        const lngDelta = toRadians(((lng2 - lng1 + 540) % 360) - 180);
+        const a = Math.sin(latDelta / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(lngDelta / 2) ** 2;
+        return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+      const isolatedJourneyMarkers = markers.filter((marker) => (journeyRoutes.get(marker.flag.code)?.size || 0) === 0);
+      isolatedJourneyMarkers.forEach((marker) => {
+        const origin = markerLngLat.get(marker.flag.code);
+        const nearby = markers
+          .filter((candidate) => candidate.flag.code !== marker.flag.code && candidate.flag.continent === marker.flag.continent)
+          .map((candidate) => ({ candidate, distance: geographicDistance(origin, markerLngLat.get(candidate.flag.code)) }))
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 3);
+        nearby.forEach(({ candidate }) => addJourneyRoute(marker.flag.code, candidate.flag.code));
+      });
+      let handlePassportDestination = () => false;
       const clickableChallengeCodes = new Set();
       countryLayer.selectAll('.map-country').each((country) => {
         const flag = getFlagForCountry(country);
@@ -3899,10 +4034,8 @@ class VexillaApp {
         .filter((flag) => clickableChallengeCodes.has(flag.code));
       let mapChallengeFlag = null;
       const challengePrompt = document.getElementById('map-challenge-prompt');
-      const challengeButton = document.getElementById('map-challenge-toggle');
       const setMapChallengePrompt = (message = '') => {
         if (challengePrompt) challengePrompt.textContent = message;
-        if (challengeButton) challengeButton.textContent = this.mapChallengeActive ? 'Stop challenge' : 'Map challenge';
       };
       const nextMapChallenge = () => {
         if (!this.mapChallengeActive || !challengeFlags.length) return;
@@ -3948,10 +4081,24 @@ class VexillaApp {
         }
       };
       setMapChallengePrompt('');
-      countryLayer.selectAll('.map-country').on('click.map-challenge', (event, country) => {
-        if (d3svg.node().classList.contains('is-dragging')) return;
-        handleMapChallengeClick(country);
-      });
+      countryLayer
+        .selectAll('.map-country')
+        .on('pointerdown.passport', (event) => {
+          event.currentTarget._passportPointerStart = { x: event.clientX, y: event.clientY };
+        })
+        .on('pointerup.passport', (event, country) => {
+          const start = event.currentTarget._passportPointerStart;
+          event.currentTarget._passportPointerStart = null;
+          if (this.mapMode !== 'journey' || !start) return;
+          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 7) return;
+          const selectedFlag = getFlagForCountry(country);
+          if (selectedFlag) handlePassportDestination(selectedFlag);
+        })
+        .on('click.map-challenge', (event, country) => {
+          if (this.mapMode !== 'challenge') return;
+          if (d3svg.node().classList.contains('is-dragging')) return;
+          handleMapChallengeClick(country);
+        });
       const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
       const sortFlagsForNavigator = (flags) =>
         [...flags].sort((a, b) => {
@@ -4373,6 +4520,10 @@ class VexillaApp {
       let activePopoverFlagCode = '';
       const blankPopoverFlagSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const showPopover = (flag, clientX, clientY) => {
+        if (this.mapMode !== 'explore') {
+          hidePopover();
+          return;
+        }
         if (!mapContainer || !popover || !popoverFlag || !popoverTitle || !popoverMeta || !popoverFact || !popoverLearningDetails || !popoverLocator) return;
 
         if (activePopoverFlagCode !== flag.code) {
@@ -4424,9 +4575,12 @@ class VexillaApp {
       };
 
       const showPopoverForMarker = (event, d) => {
+        if (this.mapMode !== 'explore') return;
         highlightCountryByFlagCode(d.flag.code);
         showPopover(d.flag, event.clientX, event.clientY);
       };
+
+      const journeyRouteLayer = d3svg.append('g').attr('class', 'passport-route-layer');
 
       const markerGroups = d3svg
         .append('g')
@@ -4439,7 +4593,18 @@ class VexillaApp {
         .attr('role', 'button')
         .attr('aria-label', (d) => `${d.flag.name} flag`)
         .attr('transform', (d) => `translate(${d.x}, ${d.y})`)
+        .on('pointerdown.passport', (event) => {
+          event.currentTarget._passportPointerStart = { x: event.clientX, y: event.clientY };
+        })
+        .on('pointerup.passport', (event, d) => {
+          const start = event.currentTarget._passportPointerStart;
+          event.currentTarget._passportPointerStart = null;
+          if (this.mapMode !== 'journey' || !start) return;
+          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 7) return;
+          handlePassportDestination(d.flag);
+        })
         .on('click', (event, d) => {
+          if (this.mapMode !== 'explore') return;
           if (d3svg.node().classList.contains('is-dragging')) return;
           this.openFlagModal(d.flag);
         })
@@ -4461,7 +4626,8 @@ class VexillaApp {
         .on('keydown', (event, d) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            this.openFlagModal(d.flag);
+            if (this.mapMode === 'journey') handlePassportDestination(d.flag);
+            else if (this.mapMode === 'explore') this.openFlagModal(d.flag);
           }
         });
 
@@ -4491,6 +4657,14 @@ class VexillaApp {
         .attr('width', (d) => d.width)
         .attr('height', (d) => d.height)
         .attr('preserveAspectRatio', 'xMidYMid meet');
+
+      markerGroups
+        .append('text')
+        .attr('class', 'passport-hidden-marker')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central')
+        .attr('aria-hidden', 'true')
+        .text('?');
 
       const zoomValue = document.getElementById('map-zoom-value');
       const renderZoomedMarkers = (transform) => {
@@ -4527,6 +4701,7 @@ class VexillaApp {
         })
         .on('zoom', (event) => {
           countryLayer.attr('transform', event.transform);
+          journeyRouteLayer.attr('transform', event.transform);
           renderZoomedMarkers(event.transform);
           hidePopover();
           clearCountryHighlight({ preserveFinderHighlight: true });
@@ -4585,6 +4760,265 @@ class VexillaApp {
       };
       this.focusWorldMapOnFlag = focusMainMapOnFlag;
 
+      const mapPanel = mapContainer?.closest('.map-panel');
+      const exploreModeButton = document.getElementById('map-mode-explore');
+      const journeyModeButton = document.getElementById('map-mode-journey');
+      const challengeModeButton = document.getElementById('map-mode-challenge');
+      const journeyPanel = document.getElementById('passport-journey-panel');
+      const challengeStatus = document.getElementById('map-challenge-status');
+      const journeyIntro = document.getElementById('passport-journey-intro');
+      const journeyStatus = document.getElementById('passport-journey-status');
+      const journeyCurrentFlag = document.getElementById('passport-current-flag');
+      const journeyCurrentName = document.getElementById('passport-current-name');
+      const journeyRouteTrail = document.getElementById('passport-route-trail');
+      const journeyRouteHint = document.getElementById('passport-route-hint');
+      const journeyVisitedCount = document.getElementById('passport-visited-count');
+      const journeyCleanCount = document.getElementById('passport-clean-count');
+      const journeyQuestion = document.getElementById('passport-question');
+      const journeyQuestionTitle = document.getElementById('passport-question-title');
+      const journeyQuestionRoute = document.getElementById('passport-question-route');
+      const journeyAnswerGrid = document.getElementById('passport-answer-grid');
+      const journeyLearningCard = document.getElementById('passport-learning-card');
+      const journeyLearningTitle = document.getElementById('passport-learning-title');
+      const journeyLearningCopy = document.getElementById('passport-learning-copy');
+      const journeyContinueButton = document.getElementById('passport-continue-button');
+      let pendingJourneyDestination = null;
+      let pendingJourneyWasCorrect = false;
+      let journeyAdvanceTimeout = null;
+
+      const getJourneyState = () => {
+        this.state.passportJourney = this.sanitizePassportJourney(this.state.passportJourney);
+        return this.state.passportJourney;
+      };
+      const getJourneyNeighborCodes = (flagCode) => [...(journeyRoutes.get(flagCode) || [])].filter((code) => markerByCode.has(code));
+      const cancelJourneyQuestion = () => {
+        if (journeyAdvanceTimeout) {
+          window.clearTimeout(journeyAdvanceTimeout);
+          journeyAdvanceTimeout = null;
+        }
+        pendingJourneyDestination = null;
+        pendingJourneyWasCorrect = false;
+        if (journeyQuestion) journeyQuestion.hidden = true;
+        if (journeyLearningCard) journeyLearningCard.hidden = true;
+        countryLayer.selectAll('.map-country').classed('is-journey-target', false);
+        markerGroups.classed('is-journey-target', false);
+      };
+      const renderJourneyMapState = () => {
+        const journey = getJourneyState();
+        const currentCode = journey.currentCode;
+        const neighborCodes = new Set(getJourneyNeighborCodes(currentCode));
+        countryLayer
+          .selectAll('.map-country')
+          .classed('is-journey-current', (country) => getFlagForCountry(country)?.code === currentCode)
+          .classed('is-journey-option', (country) => neighborCodes.has(getFlagForCountry(country)?.code));
+        markerGroups
+          .classed('is-journey-current', (marker) => marker.flag.code === currentCode)
+          .classed('is-journey-option', (marker) => neighborCodes.has(marker.flag.code))
+          .classed('is-journey-revealed', (marker) => journey.visitedCodes.includes(marker.flag.code))
+          .attr('tabindex', (marker) => (neighborCodes.has(marker.flag.code) ? 0 : -1))
+          .attr('aria-hidden', (marker) => (neighborCodes.has(marker.flag.code) ? null : 'true'));
+
+        const currentMarker = markerByCode.get(currentCode);
+        const routeLines = currentMarker
+          ? [...neighborCodes]
+              .map((code) => {
+                const destination = markerByCode.get(code);
+                if (!destination) return null;
+                return {
+                  code,
+                  x1: currentMarker.x,
+                  y1: currentMarker.y,
+                  x2: destination.x,
+                  y2: destination.y,
+                  isSeaRoute: !landJourneyRoutes.get(currentCode)?.has(code),
+                };
+              })
+              .filter(Boolean)
+          : [];
+        journeyRouteLayer
+          .selectAll('line')
+          .data(this.mapMode === 'journey' ? routeLines : [], (route) => route.code)
+          .join('line')
+          .attr('class', (route) => `passport-route-line${route.isSeaRoute ? ' is-sea-route' : ''}`)
+          .attr('x1', (route) => route.x1)
+          .attr('y1', (route) => route.y1)
+          .attr('x2', (route) => route.x2)
+          .attr('y2', (route) => route.y2);
+
+        const currentFlag = this.flags.find((flag) => flag.code === currentCode);
+        const hasJourney = Boolean(currentFlag);
+        if (journeyIntro) journeyIntro.hidden = hasJourney;
+        if (journeyStatus) journeyStatus.hidden = !hasJourney;
+        if (!currentFlag) return;
+        if (journeyCurrentName) journeyCurrentName.textContent = currentFlag.name;
+        if (journeyCurrentFlag) {
+          journeyCurrentFlag.alt = `${currentFlag.name} flag`;
+          this.getCachedFlagImageSrc(currentFlag.code, 80).then((src) => {
+            if (getJourneyState().currentCode === currentFlag.code) journeyCurrentFlag.src = src;
+          });
+        }
+        const routeNames = journey.routeCodes
+          .slice(-4)
+          .map((code) => this.flags.find((flag) => flag.code === code)?.name)
+          .filter(Boolean);
+        if (journeyRouteTrail) journeyRouteTrail.textContent = routeNames.join(' -> ');
+        if (journeyRouteHint) journeyRouteHint.textContent = `${neighborCodes.size} possible destinations. Choose a highlighted country or flag marker.`;
+        if (journeyVisitedCount) journeyVisitedCount.textContent = String(new Set(journey.visitedCodes).size);
+        if (journeyCleanCount) journeyCleanCount.textContent = `${journey.correct} / ${journey.attempts}`;
+      };
+      const movePassportToDestination = () => {
+        if (!pendingJourneyDestination) return;
+        const destination = pendingJourneyDestination;
+        const journey = getJourneyState();
+        journey.currentCode = destination.code;
+        if (!journey.visitedCodes.includes(destination.code)) journey.visitedCodes.push(destination.code);
+        journey.routeCodes.push(destination.code);
+        journey.routeCodes = journey.routeCodes.slice(-30);
+        this.saveState();
+        cancelJourneyQuestion();
+        renderJourneyMapState();
+        focusMainMapOnFlag(destination);
+      };
+      const checkPassportAnswer = (button, selectedFlag, destinationFlag) => {
+        if (!pendingJourneyDestination || destinationFlag.code !== pendingJourneyDestination.code) return;
+        const answerButtons = [...journeyAnswerGrid.querySelectorAll('.passport-answer-button')];
+        answerButtons.forEach((answerButton) => (answerButton.disabled = true));
+        const isCorrect = selectedFlag.code === destinationFlag.code;
+        const journey = getJourneyState();
+        journey.attempts += 1;
+        pendingJourneyWasCorrect = isCorrect;
+        this.state.activityCounts.map = (this.state.activityCounts.map || 0) + 1;
+        if (isCorrect) {
+          journey.correct += 1;
+          button.classList.add('correct');
+          this.recordFlagResult(destinationFlag.code, 'correct');
+          this.awardXp(8);
+          this.playCorrectChime();
+          if (journeyQuestionTitle) journeyQuestionTitle.textContent = `Correct: ${destinationFlag.name}`;
+          if (journeyQuestionRoute) journeyQuestionRoute.textContent = 'Passport stamped. Moving to your next stop...';
+          this.saveState();
+          journeyAdvanceTimeout = window.setTimeout(movePassportToDestination, 650);
+        } else {
+          button.classList.add('incorrect');
+          answerButtons.forEach((answerButton) => {
+            if (answerButton.dataset.flagCode === destinationFlag.code) answerButton.classList.add('correct');
+          });
+          this.recordFlagResult(destinationFlag.code, 'incorrect');
+          this.playFailureBuzz();
+          if (journeyQuestionTitle) journeyQuestionTitle.textContent = `This is ${destinationFlag.name}`;
+          if (journeyQuestionRoute) journeyQuestionRoute.textContent = 'Take a moment to lock in the correct flag before travelling onward.';
+          if (journeyLearningTitle) journeyLearningTitle.textContent = destinationFlag.name;
+          if (journeyLearningCopy) journeyLearningCopy.textContent = this.getMemoryHook(destinationFlag) || destinationFlag.fact;
+          if (journeyLearningCard) journeyLearningCard.hidden = false;
+          this.saveState();
+          window.requestAnimationFrame(() => journeyContinueButton?.focus());
+        }
+        renderJourneyMapState();
+      };
+      const showPassportQuestion = (destinationFlag) => {
+        const journey = getJourneyState();
+        const currentFlag = this.flags.find((flag) => flag.code === journey.currentCode);
+        if (!currentFlag || !journeyQuestion || !journeyAnswerGrid) return;
+        cancelJourneyQuestion();
+        pendingJourneyDestination = destinationFlag;
+        journeyQuestion.hidden = false;
+        if (journeyLearningCard) journeyLearningCard.hidden = true;
+        if (journeyQuestionTitle) journeyQuestionTitle.textContent = `Which flag belongs to ${destinationFlag.name}?`;
+        if (journeyQuestionRoute) journeyQuestionRoute.textContent = `${currentFlag.name} -> ${destinationFlag.name}`;
+        countryLayer.selectAll('.map-country').classed('is-journey-target', (country) => getFlagForCountry(country)?.code === destinationFlag.code);
+        markerGroups.classed('is-journey-target', (marker) => marker.flag.code === destinationFlag.code);
+        journeyAnswerGrid.textContent = '';
+        this.getPassportJourneyChoices(destinationFlag).forEach((choice, index) => {
+          const answer = document.createElement('button');
+          answer.type = 'button';
+          answer.className = 'passport-answer-button';
+          answer.dataset.flagCode = choice.code;
+          answer.setAttribute('aria-label', `Option ${String.fromCharCode(65 + index)} flag`);
+          const letter = document.createElement('span');
+          letter.textContent = String.fromCharCode(65 + index);
+          const image = document.createElement('img');
+          image.alt = '';
+          answer.append(letter, image);
+          answer.addEventListener('click', () => checkPassportAnswer(answer, choice, destinationFlag));
+          journeyAnswerGrid.appendChild(answer);
+          this.getCachedFlagImageSrc(choice.code, 80).then((src) => (image.src = src));
+        });
+        window.requestAnimationFrame(() => journeyAnswerGrid.querySelector('button')?.focus());
+      };
+      handlePassportDestination = (destinationFlag) => {
+        const journey = getJourneyState();
+        if (!journey.currentCode || destinationFlag.code === journey.currentCode) return false;
+        if (!journeyRoutes.get(journey.currentCode)?.has(destinationFlag.code)) {
+          if (journeyRouteHint) journeyRouteHint.textContent = `${destinationFlag.name} is not connected to this stop. Choose a highlighted destination.`;
+          return false;
+        }
+        showPassportQuestion(destinationFlag);
+        return true;
+      };
+      const startPassportJourney = (forceRestart = false) => {
+        const journey = getJourneyState();
+        if (forceRestart || !journey.currentCode || !markerByCode.has(journey.currentCode)) {
+          const preferredFlags = this.flags.filter(
+            (flag) => flag.continent === this.state.preferredContinent && markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length,
+          );
+          const candidates = preferredFlags.length ? preferredFlags : this.flags.filter((flag) => markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length);
+          const startFlag = candidates[Math.floor(Math.random() * candidates.length)];
+          if (!startFlag) return;
+          this.state.passportJourney = {
+            currentCode: startFlag.code,
+            visitedCodes: [startFlag.code],
+            routeCodes: [startFlag.code],
+            correct: 0,
+            attempts: 0,
+          };
+          this.saveState();
+          focusMainMapOnFlag(startFlag);
+        }
+        cancelJourneyQuestion();
+        renderJourneyMapState();
+      };
+      const setPassportMapMode = (mode) => {
+        this.mapMode = ['journey', 'challenge'].includes(mode) ? mode : 'explore';
+        const isJourney = this.mapMode === 'journey';
+        const isChallenge = this.mapMode === 'challenge';
+        const isExplore = this.mapMode === 'explore';
+        exploreModeButton?.classList.toggle('active', isExplore);
+        journeyModeButton?.classList.toggle('active', isJourney);
+        challengeModeButton?.classList.toggle('active', isChallenge);
+        exploreModeButton?.setAttribute('aria-pressed', String(isExplore));
+        journeyModeButton?.setAttribute('aria-pressed', String(isJourney));
+        challengeModeButton?.setAttribute('aria-pressed', String(isChallenge));
+        if (journeyPanel) journeyPanel.hidden = !isJourney;
+        if (challengeStatus) challengeStatus.hidden = !isChallenge;
+        mapPanel?.classList.toggle('journey-mode', isJourney);
+        mapPanel?.classList.toggle('challenge-mode', isChallenge);
+        if (!isChallenge && this.mapChallengeActive) this.mapChallengeNext?.();
+        if (isJourney) {
+          this.closeMapFinderPanel();
+          hidePopover();
+          renderJourneyMapState();
+          const currentFlag = this.flags.find((flag) => flag.code === getJourneyState().currentCode);
+          if (currentFlag) focusMainMapOnFlag(currentFlag);
+        } else {
+          cancelJourneyQuestion();
+          countryLayer.selectAll('.map-country').classed('is-journey-current is-journey-option', false);
+          markerGroups.classed('is-journey-current is-journey-option is-journey-revealed', false).attr('tabindex', 0).attr('aria-hidden', null);
+          journeyRouteLayer.selectAll('line').remove();
+        }
+        if (isChallenge) {
+          this.closeMapFinderPanel();
+          hidePopover();
+          clearCountryHighlight();
+          if (!this.mapChallengeActive) this.mapChallengeNext?.();
+        }
+      };
+      this.mapJourneySetMode = setPassportMapMode;
+      this.mapJourneyStart = startPassportJourney;
+      this.mapJourneyCancelQuestion = cancelJourneyQuestion;
+      this.mapJourneyContinue = () => {
+        if (pendingJourneyDestination && !pendingJourneyWasCorrect) movePassportToDestination();
+      };
+
       const zoomInBtn = document.getElementById('map-zoom-in');
       const zoomOutBtn = document.getElementById('map-zoom-out');
       const resetBtn = document.getElementById('map-zoom-reset');
@@ -4599,6 +5033,7 @@ class VexillaApp {
       if (resetBtn) resetBtn.addEventListener('click', () => d3svg.transition().duration(220).call(zoom.transform, defaultMapTransform));
 
       d3svg.call(zoom.transform, defaultMapTransform);
+      setPassportMapMode(this.mapMode);
 
       this.mapRendered = true;
       if (loading) loading.remove();
