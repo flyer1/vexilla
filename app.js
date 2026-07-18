@@ -2114,39 +2114,89 @@ class VexillaApp {
   }
 
   celebrateMatchSuccess(cards, isCleanMatch) {
-    const particlePositions = [
-      ['50%', '50%', '-34px', '-26px'],
-      ['50%', '50%', '-10px', '-42px'],
-      ['50%', '50%', '26px', '-34px'],
-      ['50%', '50%', '42px', '-6px'],
-      ['50%', '50%', '30px', '30px'],
-      ['50%', '50%', '-6px', '42px'],
-      ['50%', '50%', '-38px', '18px'],
-    ];
-
     cards.forEach((card) => {
       card.classList.add('matched', 'match-reward');
       card.setAttribute('tabindex', '-1');
       card.setAttribute('aria-disabled', 'true');
-
-      card.querySelectorAll('.match-reward-burst').forEach((burst) => burst.remove());
-      const burst = document.createElement('div');
-      burst.className = 'match-reward-burst';
-      particlePositions.forEach(([x, y, dx, dy], index) => {
-        const spark = document.createElement('span');
-        spark.style.setProperty('--spark-x', x);
-        spark.style.setProperty('--spark-y', y);
-        spark.style.setProperty('--spark-dx', dx);
-        spark.style.setProperty('--spark-dy', dy);
-        spark.style.setProperty('--spark-delay', `${index * 24}ms`);
-        burst.appendChild(spark);
-      });
-      card.appendChild(burst);
-
       setTimeout(() => {
         card.classList.add('match-removing');
-      }, 450);
+      }, 640);
     });
+
+    const board = document.getElementById('match-board');
+    if (board && cards.length === 2) {
+      board.querySelectorAll('.match-connection-effect').forEach((effect) => effect.remove());
+
+      const boardRect = board.getBoundingClientRect();
+      const centers = cards.map((card) => {
+        const rect = card.getBoundingClientRect();
+        return {
+          x: rect.left - boardRect.left + rect.width / 2,
+          y: rect.top - boardRect.top + rect.height / 2,
+        };
+      });
+      const [start, end] = centers;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const distance = Math.max(Math.hypot(dx, dy), 1);
+      const bend = Math.min(64, distance * 0.16);
+      const middle = {
+        x: (start.x + end.x) / 2 + (-dy / distance) * bend,
+        y: (start.y + end.y) / 2 + (dx / distance) * bend,
+      };
+      const pathData = `M ${start.x} ${start.y} Q ${middle.x} ${middle.y} ${end.x} ${end.y}`;
+      const svgNamespace = 'http://www.w3.org/2000/svg';
+      const effect = document.createElementNS(svgNamespace, 'svg');
+      effect.classList.add('match-connection-effect');
+      if (!isCleanMatch) effect.classList.add('match-connection-assisted');
+      effect.setAttribute('viewBox', `0 0 ${boardRect.width} ${boardRect.height}`);
+      effect.setAttribute('aria-hidden', 'true');
+
+      ['match-connection-halo', 'match-connection-line'].forEach((className) => {
+        const path = document.createElementNS(svgNamespace, 'path');
+        path.classList.add(className);
+        path.setAttribute('d', pathData);
+        path.setAttribute('pathLength', '1');
+        effect.appendChild(path);
+      });
+
+      [start, end].forEach((point) => {
+        const ring = document.createElementNS(svgNamespace, 'circle');
+        ring.classList.add('match-connection-ring');
+        ring.setAttribute('cx', point.x);
+        ring.setAttribute('cy', point.y);
+        ring.setAttribute('r', '12');
+        effect.appendChild(ring);
+      });
+
+      [0.2, 0.35, 0.5, 0.65, 0.8].forEach((progress, index) => {
+        const inverse = 1 - progress;
+        const dot = document.createElementNS(svgNamespace, 'circle');
+        dot.classList.add('match-connection-dot');
+        dot.setAttribute('cx', inverse * inverse * start.x + 2 * inverse * progress * middle.x + progress * progress * end.x);
+        dot.setAttribute('cy', inverse * inverse * start.y + 2 * inverse * progress * middle.y + progress * progress * end.y);
+        dot.setAttribute('r', index === 2 ? '3.5' : '2.5');
+        dot.style.setProperty('--dot-delay', `${120 + index * 55}ms`);
+        effect.appendChild(dot);
+      });
+
+      const traveler = document.createElementNS(svgNamespace, 'circle');
+      traveler.classList.add('match-connection-traveler');
+      traveler.setAttribute('r', '5');
+      const travel = document.createElementNS(svgNamespace, 'animateMotion');
+      travel.setAttribute('path', pathData);
+      travel.setAttribute('dur', '560ms');
+      travel.setAttribute('begin', '80ms');
+      travel.setAttribute('fill', 'freeze');
+      travel.setAttribute('calcMode', 'spline');
+      travel.setAttribute('keyTimes', '0;1');
+      travel.setAttribute('keySplines', '0.22 1 0.36 1');
+      traveler.appendChild(travel);
+      effect.appendChild(traveler);
+
+      board.appendChild(effect);
+      setTimeout(() => effect.remove(), 1000);
+    }
 
     const badgeId = isCleanMatch ? 'match-clean-score' : 'match-left';
     const badge = document.getElementById(badgeId)?.closest('.quiz-badge');
@@ -2221,7 +2271,7 @@ class VexillaApp {
 
       // Check win condition
       if (this.pairsLeft === 0) {
-        const finalMatchRevealDelayMs = 1100;
+        const finalMatchRevealDelayMs = 1000;
         setTimeout(() => this.showMatchGameComplete(), finalMatchRevealDelayMs);
       }
     } else {
@@ -2239,10 +2289,13 @@ class VexillaApp {
 
       this.playAudioTone(180, 'sawtooth', 0.2); // Negative buzzer
 
-      // Shake cards briefly, then clear selection outline
+      prevCard.classList.add('match-mismatch');
+      cardEl.classList.add('match-mismatch');
+
+      // Show the incorrect pair briefly, then return both cards to the pool.
       setTimeout(() => {
-        prevCard.classList.remove('selected');
-        cardEl.classList.remove('selected');
+        prevCard.classList.remove('selected', 'match-mismatch');
+        cardEl.classList.remove('selected', 'match-mismatch');
         prevCard.setAttribute('aria-pressed', 'false');
         cardEl.setAttribute('aria-pressed', 'false');
       }, 500);

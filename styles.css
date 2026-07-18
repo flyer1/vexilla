@@ -1403,6 +1403,8 @@ h4 {
   max-width: 650px;
   margin: 0 auto;
   width: 100%;
+  position: relative;
+  isolation: isolate;
 }
 
 @media (min-width: 480px) {
@@ -1520,84 +1522,147 @@ h4 {
   box-shadow: var(--glow-cyan);
 }
 
+.match-card.match-mismatch {
+  z-index: 2;
+  border-color: rgba(248, 113, 113, 0.95);
+  background:
+    radial-gradient(circle at center, rgba(239, 68, 68, 0.16), transparent 72%),
+    var(--panel-bg);
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.28),
+    0 0 18px rgba(239, 68, 68, 0.3),
+    inset 0 0 20px rgba(239, 68, 68, 0.12);
+  animation: matchMismatchNudge 0.46s ease-out;
+}
+
+.match-card.match-mismatch:focus-visible {
+  outline-color: rgba(248, 113, 113, 0.95);
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.18),
+    0 0 20px rgba(239, 68, 68, 0.34),
+    inset 0 0 20px rgba(239, 68, 68, 0.12);
+}
+
+.match-card.match-mismatch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: rgba(239, 68, 68, 0.14);
+  animation: matchMismatchWash 0.5s ease-out forwards;
+}
+
 .match-card.matched {
   pointer-events: none;
 }
 
+.match-card.matched:hover {
+  transform: none;
+}
+
 .match-card.match-reward {
-  border-color: var(--accent-green);
-  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.18), transparent 62%), var(--panel-bg);
+  z-index: 2;
+  border-color: rgba(0, 242, 254, 0.78);
+  background:
+    radial-gradient(circle at center, rgba(16, 185, 129, 0.13), transparent 68%),
+    var(--panel-bg);
   box-shadow:
-    0 0 0 1px rgba(16, 185, 129, 0.35),
-    0 0 24px rgba(16, 185, 129, 0.35),
-    inset 0 0 18px rgba(0, 242, 254, 0.12);
-  animation: matchRewardHold 1.15s ease-out forwards;
+    0 0 0 1px rgba(0, 242, 254, 0.26),
+    0 0 22px rgba(0, 242, 254, 0.28),
+    inset 0 0 22px rgba(16, 185, 129, 0.12);
+  animation: matchRewardGlow 0.72s ease-out forwards;
 }
 
 .match-card.match-removing {
-  animation: matchSuccess 0.62s ease-in forwards;
+  animation: matchSuccess 0.3s ease-in forwards;
 }
 
 .match-card.match-reward::before {
   content: '';
   position: absolute;
-  inset: 14%;
+  inset: 7%;
   z-index: 3;
   pointer-events: none;
-  border: 1px solid rgba(125, 211, 252, 0.65);
-  border-radius: 18px;
+  border: 1px solid rgba(125, 211, 252, 0.7);
+  border-radius: 12px;
   box-shadow:
-    0 0 18px rgba(0, 242, 254, 0.22),
-    inset 0 0 20px rgba(16, 185, 129, 0.18);
+    0 0 16px rgba(0, 242, 254, 0.2),
+    inset 0 0 16px rgba(16, 185, 129, 0.14);
   opacity: 0;
-  transform: scale(0.72);
-  animation: matchRewardRipple 0.9s ease-out forwards;
+  animation: matchRewardFrame 0.68s ease-out forwards;
 }
 
-.match-reward-burst {
+.match-card.match-reward::after {
+  content: '';
+  position: absolute;
+  inset: -35% -65%;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.36) 49%, rgba(0, 242, 254, 0.22) 52%, transparent 59%);
+  transform: translateX(-48%);
+  animation: matchRewardSheen 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.match-connection-effect {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
 }
 
-.match-reward-burst span {
-  position: absolute;
-  left: var(--spark-x);
-  top: var(--spark-y);
-  width: 16px;
-  height: 16px;
+.match-connection-halo,
+.match-connection-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.match-connection-halo {
+  stroke: rgba(0, 242, 254, 0.18);
+  stroke-width: 12;
+  filter: blur(5px);
+  animation: matchConnectionDraw 0.62s ease-out forwards;
+}
+
+.match-connection-line {
+  stroke: var(--accent-cyan);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 5px rgba(0, 242, 254, 0.9));
+  animation: matchConnectionDraw 0.56s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.match-connection-assisted .match-connection-line {
+  stroke: var(--accent-green);
+}
+
+.match-connection-ring {
+  fill: none;
+  stroke: rgba(125, 211, 252, 0.9);
+  stroke-width: 2;
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.18) rotate(0deg);
-  animation: matchRewardGlint 0.82s ease-out var(--spark-delay) forwards;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: matchConnectionRing 0.68s ease-out forwards;
 }
 
-.match-reward-burst span::before,
-.match-reward-burst span::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), var(--accent-cyan), transparent);
-  box-shadow: 0 0 10px rgba(0, 242, 254, 0.75);
-  transform: translate(-50%, -50%);
+.match-connection-dot {
+  fill: rgba(167, 243, 208, 0.95);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.9));
+  animation: matchConnectionDot 0.38s ease-out var(--dot-delay) forwards;
 }
 
-.match-reward-burst span::before {
-  width: 16px;
-  height: 2px;
-}
-
-.match-reward-burst span::after {
-  width: 2px;
-  height: 16px;
-}
-
-.match-reward-burst span:nth-child(even)::before,
-.match-reward-burst span:nth-child(even)::after {
-  background: var(--accent-green);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.72);
+.match-connection-traveler {
+  fill: #fff;
+  filter: drop-shadow(0 0 7px var(--accent-cyan));
+  animation: matchTravelerFade 0.76s ease-out forwards;
 }
 
 .quiz-badge.match-stat-pop {
@@ -1607,73 +1672,139 @@ h4 {
 @keyframes matchSuccess {
   0% {
     opacity: 1;
-    border-color: var(--accent-green);
-    filter: saturate(1.12);
-  }
-  55% {
-    opacity: 0.7;
-    filter: saturate(1.05) blur(0.5px);
+    filter: brightness(1.08) saturate(1.08);
   }
   100% {
     opacity: 0;
-    filter: saturate(1) blur(2px);
+    filter: brightness(1.16) saturate(0.9) blur(1.5px);
     visibility: hidden;
   }
 }
 
-@keyframes matchRewardHold {
+@keyframes matchRewardGlow {
   0% {
     box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.22),
-      0 0 0 rgba(16, 185, 129, 0),
+      0 0 0 1px rgba(0, 242, 254, 0.16),
+      0 0 0 rgba(0, 242, 254, 0),
       inset 0 0 0 rgba(0, 242, 254, 0);
   }
-  34% {
+  38% {
     box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.6),
-      0 0 28px rgba(16, 185, 129, 0.42),
-      inset 0 0 22px rgba(0, 242, 254, 0.18);
+      0 0 0 1px rgba(0, 242, 254, 0.58),
+      0 0 30px rgba(0, 242, 254, 0.4),
+      inset 0 0 24px rgba(16, 185, 129, 0.17);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(16, 185, 129, 0.32),
+      0 0 17px rgba(16, 185, 129, 0.22),
+      inset 0 0 12px rgba(0, 242, 254, 0.08);
+  }
+}
+
+@keyframes matchRewardFrame {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 0.24;
+  }
+}
+
+@keyframes matchRewardSheen {
+  0% {
+    transform: translateX(-48%);
+  }
+  100% {
+    transform: translateX(48%);
+  }
+}
+
+@keyframes matchConnectionDraw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.72;
+  }
+}
+
+@keyframes matchConnectionRing {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes matchConnectionDot {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes matchTravelerFade {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  24%,
+  68% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes matchMismatchNudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  22% {
+    transform: translateX(-4px);
+  }
+  48% {
+    transform: translateX(3px);
   }
   72% {
-    box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.42),
-      0 0 20px rgba(16, 185, 129, 0.26),
-      inset 0 0 14px rgba(0, 242, 254, 0.12);
-  }
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.35),
-      0 0 16px rgba(16, 185, 129, 0.22),
-      inset 0 0 12px rgba(0, 242, 254, 0.1);
+    transform: translateX(-2px);
   }
 }
 
-@keyframes matchRewardRipple {
+@keyframes matchMismatchWash {
   0% {
     opacity: 0;
-    transform: scale(0.72);
-  }
-  28% {
-    opacity: 0.85;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.22);
-  }
-}
-
-@keyframes matchRewardGlint {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.18) rotate(0deg);
   }
   24% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(35deg);
   }
   100% {
     opacity: 0;
-    transform: translate(calc(-50% + var(--spark-dx)), calc(-50% + var(--spark-dy))) scale(0.32) rotate(95deg);
   }
 }
 
@@ -1694,7 +1825,10 @@ h4 {
 
 @media (prefers-reduced-motion: reduce) {
   .match-card.match-reward::before,
-  .match-reward-burst span,
+  .match-card.match-reward::after,
+  .match-card.match-mismatch,
+  .match-card.match-mismatch::after,
+  .match-connection-effect *,
   .quiz-badge.match-stat-pop {
     animation-duration: 0.2s;
   }
