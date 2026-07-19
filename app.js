@@ -1820,7 +1820,7 @@ class VexillaApp {
     const isCorrect = selectedValue === correctValue;
 
     if (isCorrect) {
-      clickedBtn.classList.add('correct');
+      clickedBtn.classList.add('correct', 'quiz-correct-reward');
       this.quizScore++;
       this.quizStreak++;
       if (this.quizStreak > this.quizMaxStreak) {

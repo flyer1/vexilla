@@ -1271,6 +1271,47 @@ h4 {
   border-color: var(--accent-green) !important;
 }
 
+.quiz-option.quiz-correct-reward {
+  animation: quizCorrectRewardGlow 0.82s ease-out forwards;
+}
+
+.quiz-option.quiz-correct-reward:focus-visible {
+  outline-color: rgba(52, 211, 153, 0.95);
+}
+
+.quiz-option.quiz-correct-reward > * {
+  position: relative;
+  z-index: 2;
+}
+
+.quiz-option.quiz-correct-reward::before {
+  content: '';
+  position: absolute;
+  inset: -70% -45%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.42) 48%, rgba(0, 242, 254, 0.25) 52%, transparent 60%);
+  transform: translateX(-52%);
+  animation: quizCorrectSheen 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.quiz-option.quiz-correct-reward::after {
+  content: '';
+  position: absolute;
+  left: 2.1rem;
+  top: 50%;
+  z-index: 1;
+  width: 52px;
+  height: 52px;
+  pointer-events: none;
+  border: 2px solid rgba(167, 243, 208, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.42);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35);
+  animation: quizCorrectPulse 0.7s ease-out forwards;
+}
+
 .quiz-option.incorrect {
   background: rgba(239, 68, 68, 0.15) !important;
   border-color: var(--accent-red) !important;
@@ -1295,6 +1336,54 @@ h4 {
   }
   75% {
     transform: translateX(6px);
+  }
+}
+
+@keyframes quizCorrectRewardGlow {
+  0% {
+    filter: brightness(1);
+  }
+  32% {
+    filter: brightness(1.16);
+    box-shadow:
+      0 0 0 1px rgba(52, 211, 153, 0.55),
+      0 0 26px rgba(16, 185, 129, 0.42),
+      inset 0 0 20px rgba(0, 242, 254, 0.12);
+  }
+  100% {
+    filter: brightness(1.04);
+    box-shadow: var(--glow-green);
+  }
+}
+
+@keyframes quizCorrectSheen {
+  0% {
+    transform: translateX(-52%);
+  }
+  100% {
+    transform: translateX(52%);
+  }
+}
+
+@keyframes quizCorrectPulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  28% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-option.quiz-correct-reward,
+  .quiz-option.quiz-correct-reward::before,
+  .quiz-option.quiz-correct-reward::after {
+    animation-duration: 0.2s;
   }
 }
 
@@ -2136,6 +2225,13 @@ h4 {
   display: flex;
   align-items: center;
   gap: 1rem;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.quiz-option.glass-panel {
+  overflow: hidden;
 }
 
 .passport-journey-intro > div {
