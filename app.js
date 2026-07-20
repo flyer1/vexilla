@@ -217,6 +217,7 @@ class VexillaApp {
       lastLearningDate: '',
       learningStreak: 0,
       xp: 0,
+      xpCurveVersion: this.getXpCurveVersion(),
       recentSessions: [],
       activityCounts: {},
       bestQuizStreak: 0,
@@ -241,7 +242,11 @@ class VexillaApp {
       const saved = localStorage.getItem('vexilla_state');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return this.getSanitizedState({ ...defaultState, ...parsed });
+        const sanitizedState = this.getSanitizedState(parsed);
+        if (Number(parsed.xpCurveVersion) !== sanitizedState.xpCurveVersion) {
+          localStorage.setItem('vexilla_state', JSON.stringify(sanitizedState));
+        }
+        return sanitizedState;
       }
     } catch (e) {
       console.error('Failed to load local storage state:', e);
@@ -272,6 +277,7 @@ class VexillaApp {
       lastLearningDate: '',
       learningStreak: 0,
       xp: 0,
+      xpCurveVersion: this.getXpCurveVersion(),
       recentSessions: [],
       activityCounts: {},
       bestQuizStreak: 0,
@@ -302,6 +308,9 @@ class VexillaApp {
     const highscore = Number(rawState.quizHighscore);
     const streak = Number(rawState.streak);
     const xp = Number(rawState.xp);
+    const sanitizedXp = Number.isFinite(xp) ? Math.max(0, Math.round(xp)) : defaults.xp;
+    const xpCurveVersion = Number(rawState.xpCurveVersion);
+    const migratedXp = xpCurveVersion >= this.getXpCurveVersion() ? sanitizedXp : this.migrateLegacyLinearXp(sanitizedXp);
     const bestQuizStreak = Number(rawState.bestQuizStreak);
 
     return {
@@ -320,7 +329,8 @@ class VexillaApp {
         : defaults.preferredContinent,
       lastLearningDate: typeof rawState.lastLearningDate === 'string' ? rawState.lastLearningDate : defaults.lastLearningDate,
       learningStreak: Number.isFinite(Number(rawState.learningStreak)) ? Math.max(0, Math.round(Number(rawState.learningStreak))) : defaults.learningStreak,
-      xp: Number.isFinite(xp) ? Math.max(0, Math.round(xp)) : defaults.xp,
+      xp: migratedXp,
+      xpCurveVersion: this.getXpCurveVersion(),
       recentSessions: this.sanitizeRecentSessions(rawState.recentSessions),
       activityCounts: this.sanitizeActivityCounts(rawState.activityCounts),
       bestQuizStreak: Number.isFinite(bestQuizStreak) ? Math.max(0, Math.round(bestQuizStreak)) : defaults.bestQuizStreak,
@@ -496,12 +506,44 @@ class VexillaApp {
     this.state.recentSessions = [cleanSession, ...(this.state.recentSessions || [])].slice(0, 12);
   }
 
+  getXpCurveVersion() {
+    return 2;
+  }
+
+  getXpRequiredForLevel(level) {
+    const safeLevel = Math.max(1, Math.round(Number(level) || 1));
+    return 250 + (safeLevel - 1) * 50;
+  }
+
+  getTotalXpForLevel(level) {
+    const completedLevels = Math.max(0, Math.round(Number(level) || 1) - 1);
+    return completedLevels * 250 + 25 * completedLevels * (completedLevels - 1);
+  }
+
+  getLevelForXp(xp) {
+    const safeXp = Math.max(0, Math.round(Number(xp) || 0));
+    const completedLevels = Math.max(0, Math.floor((-225 + Math.sqrt(50625 + 100 * safeXp)) / 50));
+    let level = completedLevels + 1;
+
+    while (level > 1 && safeXp < this.getTotalXpForLevel(level)) level--;
+    while (safeXp >= this.getTotalXpForLevel(level + 1)) level++;
+    return level;
+  }
+
+  migrateLegacyLinearXp(xp) {
+    const safeXp = Math.max(0, Math.round(Number(xp) || 0));
+    const legacyXpPerLevel = 250;
+    const legacyLevel = Math.floor(safeXp / legacyXpPerLevel) + 1;
+    const legacyProgress = (safeXp % legacyXpPerLevel) / legacyXpPerLevel;
+    return this.getTotalXpForLevel(legacyLevel) + Math.round(legacyProgress * this.getXpRequiredForLevel(legacyLevel));
+  }
+
   getExplorerLevel() {
     const xp = this.state.xp || 0;
-    const xpPerLevel = 250;
-    const level = Math.floor(xp / xpPerLevel) + 1;
-    const currentLevelXp = (level - 1) * xpPerLevel;
-    const nextLevelXp = level * xpPerLevel;
+    const level = this.getLevelForXp(xp);
+    const xpPerLevel = this.getXpRequiredForLevel(level);
+    const currentLevelXp = this.getTotalXpForLevel(level);
+    const nextLevelXp = this.getTotalXpForLevel(level + 1);
     const xpIntoLevel = xp - currentLevelXp;
     const xpRemaining = nextLevelXp - xp;
     return {
@@ -1970,10 +2012,11 @@ class VexillaApp {
     document.getElementById('sum-score').textContent = `${accuracy}%`;
     document.getElementById('sum-subtitle').textContent = `You correctly answered ${this.quizScore} out of ${totalCount} questions.`;
 
+    const maximumSetBonus = totalCount * 10;
     const xpReward = this.calculatePerformanceXp(this.quizScore, totalCount, {
       basePerCorrect: 10,
-      accuracyBonusMax: 100,
-      perfectBonus: 100,
+      accuracyBonusMax: maximumSetBonus,
+      perfectBonus: maximumSetBonus,
     });
     const pointsGained = this.awardXp(xpReward.totalXp, accuracy === 100 ? 'Perfect quiz' : `${accuracy}% quiz`);
     document.getElementById('sum-points').textContent = `+${pointsGained} XP`;
