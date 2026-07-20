@@ -3766,28 +3766,38 @@ h4 {
 
 @media (max-width: 600px) {
   .explorer-progress-panel {
-    grid-template-columns: 58px minmax(0, 1fr);
-    gap: 0.8rem;
-    padding: 0.9rem;
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: 0.35rem;
+    padding: 1rem;
   }
 
   .explorer-level-badge {
-    width: 58px;
-    height: 58px;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: auto;
+    height: auto;
+    flex-direction: row;
+    gap: 0.28rem;
+    padding: 0.32rem 0.48rem;
   }
 
   .explorer-level-badge strong {
-    font-size: 1.55rem;
+    font-size: 0.82rem;
   }
 
   .explorer-progress-heading {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.2rem;
+    padding-right: 4.5rem;
   }
 
   .explorer-progress-heading h2 {
-    font-size: 0.95rem;
+    font-size: 1.05rem;
+    line-height: 1.25;
   }
 
   .explorer-progress-heading > strong {
@@ -3795,6 +3805,9 @@ h4 {
   }
 
   .explorer-progress-caption {
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
     gap: 0.5rem;
     font-size: 0.68rem;
   }
