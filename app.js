@@ -2088,11 +2088,12 @@ class VexillaApp {
     this.checkAchievements();
   }
 
-  flipFlashcard() {
+  flipFlashcard(options = {}) {
     const card = document.getElementById('interactive-card');
     if (!card) return;
     card.classList.toggle('flipped');
     card.setAttribute('aria-pressed', String(card.classList.contains('flipped')));
+    if (options.releaseFocus && document.activeElement === card) card.blur();
     this.playAudioTone(330, 'triangle', 0.05); // Subtle flip sound
   }
 
@@ -3435,7 +3436,7 @@ class VexillaApp {
     if (this.currentView === 'flashcards') {
       if (key === 'f') {
         event.preventDefault();
-        this.flipFlashcard();
+        this.flipFlashcard({ releaseFocus: true });
       } else if (key === 'k') {
         event.preventDefault();
         this.cardAction('learned');
@@ -4806,6 +4807,36 @@ class VexillaApp {
       const blankPopoverFlagSrc = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"%3E%3Crect width="3" height="2" fill="%23111827"/%3E%3C/svg%3E';
       const canShowPopoverForFlag = (flag) =>
         this.mapMode === 'explore' || (this.mapMode === 'journey' && this.state.passportJourney?.visitedCodes?.includes(flag.code));
+      const positionPopover = (clientX, clientY) => {
+        if (!mapContainer || !popover) return;
+
+        const containerRect = mapContainer.getBoundingClientRect();
+        const gap = 14;
+        const edge = 10;
+        const visibleTop = Math.max(containerRect.top, edge);
+        const visibleBottom = Math.min(containerRect.bottom, window.innerHeight - edge);
+        const minTop = Math.max(edge, visibleTop - containerRect.top);
+        const maxBottom = Math.min(containerRect.height - edge, visibleBottom - containerRect.top);
+        const availableHeight = Math.max(240, maxBottom - minTop);
+
+        popover.style.maxHeight = `${availableHeight}px`;
+
+        const popoverRect = popover.getBoundingClientRect();
+        let left = clientX - containerRect.left + gap;
+        let top = clientY - containerRect.top + gap;
+
+        if (left + popoverRect.width > containerRect.width - edge) {
+          left = clientX - containerRect.left - popoverRect.width - gap;
+        }
+        if (top + popoverRect.height > maxBottom) {
+          top = clientY - containerRect.top - popoverRect.height - gap;
+        }
+
+        const maxLeft = Math.max(edge, containerRect.width - popoverRect.width - edge);
+        const maxTop = Math.max(minTop, maxBottom - popoverRect.height);
+        popover.style.left = `${Math.min(Math.max(edge, left), maxLeft)}px`;
+        popover.style.top = `${Math.min(Math.max(minTop, top), maxTop)}px`;
+      };
       const showPopover = (flag, clientX, clientY) => {
         if (!canShowPopoverForFlag(flag)) {
           hidePopover();
@@ -4838,27 +4869,17 @@ class VexillaApp {
             this.renderFlagLearningDetails(popoverLearningDetails, flag);
             this.renderCountryLocatorMap(popoverLocator, flag, { compact: true, popover: true });
             popover.classList.remove('is-loading');
+            requestAnimationFrame(() => {
+              if (activePopoverFlagCode === flag.code && popover.classList.contains('active')) {
+                positionPopover(clientX, clientY);
+              }
+            });
           });
         }
 
         popover.classList.add('active');
         popover.setAttribute('aria-hidden', 'false');
-
-        const containerRect = mapContainer.getBoundingClientRect();
-        const popoverRect = popover.getBoundingClientRect();
-        const gap = 14;
-        let left = clientX - containerRect.left + gap;
-        let top = clientY - containerRect.top + gap;
-
-        if (left + popoverRect.width > containerRect.width - 10) {
-          left = clientX - containerRect.left - popoverRect.width - gap;
-        }
-        if (top + popoverRect.height > containerRect.height - 10) {
-          top = clientY - containerRect.top - popoverRect.height - gap;
-        }
-
-        popover.style.left = `${Math.max(10, left)}px`;
-        popover.style.top = `${Math.max(10, top)}px`;
+        positionPopover(clientX, clientY);
       };
 
       const showPopoverForMarker = (event, d) => {
