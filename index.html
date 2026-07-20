@@ -143,16 +143,31 @@
               </div>
             </div>
 
-            <div class="stat-card glass-panel">
+            <div class="stat-card glass-panel xp-level-card">
               <div class="stat-icon" style="color: var(--accent-cyan)">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
                   <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
                   <path d="M9 12l2 2 4-5" />
                 </svg>
               </div>
-              <div class="stat-info">
-                <span class="stat-value" id="stats-level">Level 1</span>
-                <span class="stat-label">Explorer Level</span>
+              <div class="stat-info xp-stat-info">
+                <div class="xp-stat-heading">
+                  <span class="stat-value" id="stats-level">Level 1</span>
+                  <strong id="stats-xp-total">0 XP</strong>
+                </div>
+                <span class="stat-label" id="stats-xp-next">250 XP to Level 2</span>
+                <div
+                  class="explorer-xp-meter compact"
+                  id="dashboard-xp-meter"
+                  role="progressbar"
+                  aria-label="XP progress to next explorer level"
+                  aria-valuemin="0"
+                  aria-valuemax="250"
+                  aria-valuenow="0"
+                >
+                  <div id="dashboard-xp-level-bar"></div>
+                </div>
+                <small id="dashboard-xp-level-progress">0 / 250 XP</small>
               </div>
             </div>
 
@@ -515,7 +530,7 @@
             </button>
             <div>
               <h1 class="page-title">Flag Challenge</h1>
-              <p class="page-subtitle">Test your knowledge. Build score multipliers for streak answers!</p>
+              <p class="page-subtitle">Test your knowledge. Higher accuracy earns increasingly larger XP bonuses.</p>
             </div>
           </header>
 
@@ -623,7 +638,7 @@
             <div class="summary-stat-row">
               <div class="summary-stat">
                 <span class="summary-stat-val" id="sum-points" style="color: var(--accent-cyan)">+80 XP</span>
-                <span class="summary-stat-lbl">Points Gained</span>
+                <span class="summary-stat-lbl">XP Gained</span>
               </div>
               <div class="summary-stat" style="border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 1.5rem">
                 <span class="summary-stat-val" id="sum-max-streak" style="color: var(--accent-orange)">5 🔥</span>
@@ -652,7 +667,7 @@
             </button>
             <div>
               <h1 class="page-title">Flag Match</h1>
-              <p class="page-subtitle">Match flags with country names. Use details when you need to learn, but that pair will not count as a clean match.</p>
+              <p class="page-subtitle">Match flags with country names. Clean rounds earn larger XP bonuses; using details keeps the learning, but that pair will not count as clean.</p>
             </div>
           </header>
 
@@ -941,6 +956,37 @@
             <h1 class="page-title">Progress & Achievements</h1>
             <p class="page-subtitle">Unlock cards by studying and score perfect marks in quizzes to earn special medals.</p>
           </header>
+
+          <section class="explorer-progress-panel glass-panel" aria-labelledby="explorer-progress-title">
+            <div class="explorer-level-badge" aria-hidden="true">
+              <span>Level</span>
+              <strong id="progress-explorer-level">1</strong>
+            </div>
+            <div class="explorer-progress-main">
+              <div class="explorer-progress-heading">
+                <div>
+                  <span class="section-kicker">Explorer journey</span>
+                  <h2 id="explorer-progress-title">Build XP. Reach the next level.</h2>
+                </div>
+                <strong id="progress-explorer-total-xp">0 total XP</strong>
+              </div>
+              <div
+                class="explorer-xp-meter"
+                id="progress-xp-meter"
+                role="progressbar"
+                aria-label="XP progress to next explorer level"
+                aria-valuemin="0"
+                aria-valuemax="250"
+                aria-valuenow="0"
+              >
+                <div id="progress-xp-level-bar"></div>
+              </div>
+              <div class="explorer-progress-caption">
+                <span id="progress-xp-level-progress">0 / 250 XP</span>
+                <strong id="progress-xp-to-next">250 XP to Level 2</strong>
+              </div>
+            </div>
+          </section>
 
           <div class="achievement-summary-panel glass-panel">
             <div class="achievement-summary-main">

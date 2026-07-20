@@ -422,6 +422,70 @@ h4 {
   color: var(--text-muted);
 }
 
+.xp-level-card {
+  border-color: rgba(0, 242, 254, 0.2);
+}
+
+.xp-level-card .stat-icon {
+  flex: 0 0 48px;
+}
+
+.xp-stat-info {
+  flex: 1;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.xp-stat-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.xp-stat-heading .stat-value {
+  font-size: 1.45rem;
+  white-space: nowrap;
+}
+
+.xp-stat-heading strong {
+  color: var(--accent-cyan);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.explorer-xp-meter {
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 5px rgba(0, 0, 0, 0.22);
+}
+
+.explorer-xp-meter.compact {
+  height: 7px;
+  margin-top: 0.15rem;
+}
+
+.explorer-xp-meter > div {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-green));
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.38);
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.xp-stat-info small {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 /* Learning Path (Levels Selection) */
 .path-section-title {
   font-size: 1.5rem;
@@ -3617,6 +3681,119 @@ h4 {
 }
 
 /* --- PROGRESS & ACHIEVEMENT VIEW --- */
+.explorer-progress-panel {
+  width: min(100%, 980px);
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 1.25rem;
+  border-color: rgba(0, 242, 254, 0.2);
+}
+
+.explorer-level-badge {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 242, 254, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(0, 242, 254, 0.16), rgba(168, 85, 247, 0.16)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 22px rgba(0, 242, 254, 0.12);
+}
+
+.explorer-level-badge span {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.explorer-level-badge strong {
+  color: var(--text-main);
+  font-family: var(--font-title);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.explorer-progress-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.explorer-progress-heading,
+.explorer-progress-caption {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.explorer-progress-heading h2 {
+  margin: 0.15rem 0 0;
+  color: var(--text-main);
+  font-size: 1.15rem;
+}
+
+.explorer-progress-heading > strong {
+  color: var(--accent-cyan);
+  font-family: var(--font-title);
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.explorer-progress-caption {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.explorer-progress-caption strong {
+  color: var(--text-main);
+}
+
+@media (max-width: 600px) {
+  .explorer-progress-panel {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 0.8rem;
+    padding: 0.9rem;
+  }
+
+  .explorer-level-badge {
+    width: 58px;
+    height: 58px;
+  }
+
+  .explorer-level-badge strong {
+    font-size: 1.55rem;
+  }
+
+  .explorer-progress-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .explorer-progress-heading h2 {
+    font-size: 0.95rem;
+  }
+
+  .explorer-progress-heading > strong {
+    font-size: 0.78rem;
+  }
+
+  .explorer-progress-caption {
+    gap: 0.5rem;
+    font-size: 0.68rem;
+  }
+}
+
 .achievement-summary-panel {
   max-width: 760px;
   padding: 1.25rem 1.5rem;

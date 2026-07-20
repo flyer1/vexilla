@@ -498,17 +498,80 @@ class VexillaApp {
 
   getExplorerLevel() {
     const xp = this.state.xp || 0;
-    const level = Math.floor(xp / 250) + 1;
-    const currentLevelXp = (level - 1) * 250;
-    const nextLevelXp = level * 250;
-    return { level, xp, currentLevelXp, nextLevelXp, progress: Math.round(((xp - currentLevelXp) / 250) * 100) };
+    const xpPerLevel = 250;
+    const level = Math.floor(xp / xpPerLevel) + 1;
+    const currentLevelXp = (level - 1) * xpPerLevel;
+    const nextLevelXp = level * xpPerLevel;
+    const xpIntoLevel = xp - currentLevelXp;
+    const xpRemaining = nextLevelXp - xp;
+    return {
+      level,
+      xp,
+      xpPerLevel,
+      currentLevelXp,
+      nextLevelXp,
+      xpIntoLevel,
+      xpRemaining,
+      progress: Math.round((xpIntoLevel / xpPerLevel) * 100),
+    };
+  }
+
+  calculatePerformanceXp(correct, total, options = {}) {
+    const safeTotal = Math.max(1, Math.round(Number(total) || 1));
+    const safeCorrect = Math.min(safeTotal, Math.max(0, Math.round(Number(correct) || 0)));
+    const ratio = safeCorrect / safeTotal;
+    const baseXp = safeCorrect * Math.max(0, Math.round(Number(options.basePerCorrect) || 0));
+    const accuracyBonus = Math.round(Math.max(0, Number(options.accuracyBonusMax) || 0) * ratio ** 3);
+    const perfectBonus = safeCorrect === safeTotal ? Math.max(0, Math.round(Number(options.perfectBonus) || 0)) : 0;
+    return {
+      accuracy: Math.round(ratio * 100),
+      baseXp,
+      accuracyBonus,
+      perfectBonus,
+      totalXp: baseXp + accuracyBonus + perfectBonus,
+    };
+  }
+
+  updateExplorerProgressDisplays(explorer = this.getExplorerLevel()) {
+    const setText = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    };
+    const updateMeter = (meterId, barId) => {
+      const meter = document.getElementById(meterId);
+      const bar = document.getElementById(barId);
+      if (meter) {
+        meter.setAttribute('aria-valuemax', String(explorer.xpPerLevel));
+        meter.setAttribute('aria-valuenow', String(explorer.xpIntoLevel));
+        meter.setAttribute('aria-valuetext', `${explorer.xpIntoLevel} of ${explorer.xpPerLevel} XP toward Level ${explorer.level + 1}`);
+      }
+      if (bar) bar.style.width = `${explorer.progress}%`;
+    };
+
+    setText('stats-level', `Level ${explorer.level}`);
+    setText('stats-xp-total', `${explorer.xp.toLocaleString()} XP`);
+    setText('stats-xp-next', `${explorer.xpRemaining} XP to Level ${explorer.level + 1}`);
+    setText('dashboard-xp-level-progress', `${explorer.xpIntoLevel} / ${explorer.xpPerLevel} XP`);
+    updateMeter('dashboard-xp-meter', 'dashboard-xp-level-bar');
+
+    setText('progress-explorer-level', String(explorer.level));
+    setText('progress-explorer-total-xp', `${explorer.xp.toLocaleString()} total XP`);
+    setText('progress-xp-level-progress', `${explorer.xpIntoLevel} / ${explorer.xpPerLevel} XP`);
+    setText('progress-xp-to-next', `${explorer.xpRemaining} XP to Level ${explorer.level + 1}`);
+    updateMeter('progress-xp-meter', 'progress-xp-level-bar');
   }
 
   awardXp(amount, reason = '') {
     const gained = Math.max(0, Math.round(Number(amount) || 0));
     if (!gained) return 0;
+    const previousLevel = this.getExplorerLevel().level;
     this.state.xp = (this.state.xp || 0) + gained;
-    if (reason) this.spawnToast('Explorer XP earned', `${reason}: +${gained} XP`, '+', 7000);
+    const explorer = this.getExplorerLevel();
+    if (explorer.level > previousLevel) {
+      this.spawnToast('Explorer level up!', `You reached Level ${explorer.level} with ${explorer.xp} total XP.`, '+', 10000);
+    } else if (reason) {
+      this.spawnToast('Explorer XP earned', `${reason}: +${gained} XP`, '+', 7000);
+    }
     return gained;
   }
 
@@ -945,8 +1008,7 @@ class VexillaApp {
     if (highscoreSpan) highscoreSpan.textContent = `${this.state.quizHighscore}%`;
 
     const explorer = this.getExplorerLevel();
-    const levelSpan = document.getElementById('stats-level');
-    if (levelSpan) levelSpan.textContent = `Level ${explorer.level}`;
+    this.updateExplorerProgressDisplays(explorer);
 
     const streakSpan = document.getElementById('stats-streak');
     const learningStreak = this.state.learningStreak || 0;
@@ -1713,6 +1775,7 @@ class VexillaApp {
     if (!grid || !sessionList) return;
 
     const explorer = this.getExplorerLevel();
+    this.updateExplorerProgressDisplays(explorer);
     if (xpSummary) xpSummary.textContent = `Level ${explorer.level} • ${explorer.xp} XP`;
 
     const continentInsights = this.getContinentInsights().filter((item) => item.attempts > 0);
@@ -1730,7 +1793,7 @@ class VexillaApp {
     const passportContinentLabel = passportContinents === 1 ? 'continent' : 'continents';
 
     const insightCards = [
-      { label: 'Explorer XP', value: `${explorer.xp} XP`, detail: `${250 - (explorer.xp - explorer.currentLevelXp)} XP to Level ${explorer.level + 1}` },
+      { label: 'Explorer XP', value: `${explorer.xp} XP`, detail: `${explorer.xpRemaining} XP to Level ${explorer.level + 1}` },
       { label: 'Flags practiced', value: `${studiedFlags} / ${this.flags.length}`, detail: 'Answered or matched at least once' },
       { label: 'Due today', value: `${due.length}`, detail: due.length ? 'Ready for spaced review' : 'Nothing overdue right now' },
       { label: 'Strongest continent', value: strongest ? `${strongest.continent}` : 'Not enough data', detail: strongest ? `${strongest.accuracy}% accuracy` : 'Practice a quiz or match round' },
@@ -1907,8 +1970,12 @@ class VexillaApp {
     document.getElementById('sum-score').textContent = `${accuracy}%`;
     document.getElementById('sum-subtitle').textContent = `You correctly answered ${this.quizScore} out of ${totalCount} questions.`;
 
-    // Points Gained: quiz XP is now persistent explorer progress.
-    const pointsGained = this.awardXp(this.quizScore * 10 + (accuracy === 100 ? 25 : 0));
+    const xpReward = this.calculatePerformanceXp(this.quizScore, totalCount, {
+      basePerCorrect: 10,
+      accuracyBonusMax: 100,
+      perfectBonus: 100,
+    });
+    const pointsGained = this.awardXp(xpReward.totalXp, accuracy === 100 ? 'Perfect quiz' : `${accuracy}% quiz`);
     document.getElementById('sum-points').textContent = `+${pointsGained} XP`;
     document.getElementById('sum-max-streak').textContent = `${this.quizMaxStreak} 🔥`;
     this.state.activityCounts.quiz = (this.state.activityCounts.quiz || 0) + 1;
@@ -1920,9 +1987,11 @@ class VexillaApp {
       accuracy,
     });
     this.renderSessionSummary(document.getElementById('quiz-session-summary'), [
-      { label: 'New review items', value: `${this.quizMistakeCodes.length}` },
+      { label: 'Answer XP', value: `+${xpReward.baseXp}` },
+      { label: 'Accuracy bonus', value: `+${xpReward.accuracyBonus}` },
+      xpReward.perfectBonus ? { label: 'Perfect bonus', value: `+${xpReward.perfectBonus}` } : null,
       { label: 'Explorer level', value: `Level ${this.getExplorerLevel().level}` },
-      { label: 'Due after this', value: `${this.getDueFlags().length}` },
+      { label: 'Review items', value: `${this.quizMistakeCodes.length}` },
     ]);
     const retryButton = document.getElementById('retry-missed-btn');
     if (retryButton) retryButton.hidden = this.quizMistakeCodes.length === 0;
@@ -2308,8 +2377,13 @@ class VexillaApp {
     const summary = document.getElementById('match-summary-panel');
     summary.style.display = 'flex';
 
-    const accuracy = this.matchTotalPairs > 0 ? Math.round((this.matchCleanMatches / this.matchTotalPairs) * 100) : 0;
-    const xpGained = this.awardXp(this.matchCleanMatches * 12 + (this.matchCleanMatches === this.matchTotalPairs ? 18 : 0));
+    const xpReward = this.calculatePerformanceXp(this.matchCleanMatches, this.matchTotalPairs, {
+      basePerCorrect: 12,
+      accuracyBonusMax: 72,
+      perfectBonus: 70,
+    });
+    const accuracy = xpReward.accuracy;
+    const xpGained = this.awardXp(xpReward.totalXp, accuracy === 100 ? 'Perfect match game' : `${accuracy}% clean match game`);
     this.state.activityCounts.match = (this.state.activityCounts.match || 0) + 1;
     this.addRecentSession({
       type: 'match',
@@ -2330,9 +2404,10 @@ class VexillaApp {
     }
 
     this.renderSessionSummary(document.getElementById('match-session-summary'), [
-      { label: 'Explorer XP', value: `+${xpGained}` },
-      { label: 'Accuracy', value: `${accuracy}%` },
-      { label: 'Review queue', value: `${this.state.needReviewFlags.length}` },
+      { label: 'Clean-match XP', value: `+${xpReward.baseXp}` },
+      { label: 'Accuracy bonus', value: `+${xpReward.accuracyBonus}` },
+      xpReward.perfectBonus ? { label: 'Perfect bonus', value: `+${xpReward.perfectBonus}` } : null,
+      { label: 'Explorer level', value: `Level ${this.getExplorerLevel().level}` },
     ]);
 
     this.playSuccessChime();
