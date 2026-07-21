@@ -1,10 +1,10 @@
-const CACHE_VERSION = 'vexilla-offline-v25';
+const CACHE_VERSION = 'vexilla-offline-v30';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './data.js',
-  './app.js',
+  './styles.css?v=30',
+  './data.js?v=30',
+  './app.js?v=30',
   './favicon.ico',
   './manifest.json',
 ];
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin === self.location.origin) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(networkFirst(request, request));
     return;
   }
 

@@ -22,6 +22,7 @@
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-orange: #f59e0b;
+  --accent-yellow: #fbbf24;
 
   --glow-cyan: 0 0 15px rgba(0, 242, 254, 0.4);
   --glow-purple: 0 0 15px rgba(157, 78, 221, 0.4);
@@ -48,6 +49,7 @@
   --accent-cyan: #0ea5e9;
   --accent-purple: #7b2cbf;
   --accent-blue: #2563eb;
+  --accent-yellow: #d97706;
 
   --glow-cyan: 0 0 15px rgba(14, 165, 233, 0.3);
   --glow-purple: 0 0 15px rgba(123, 44, 191, 0.3);
@@ -2371,7 +2373,12 @@ h4 {
   white-space: nowrap;
 }
 
-.passport-journey-stats span {
+.passport-journey-stats span,
+.passport-remaining-button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
   border: 1px solid var(--panel-border);
   border-radius: 999px;
   padding: 0.3rem 0.55rem;
@@ -2379,6 +2386,119 @@ h4 {
   background: rgba(255, 255, 255, 0.04);
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+.passport-remaining-button {
+  border-color: rgba(251, 191, 36, 0.44);
+  background: rgba(251, 191, 36, 0.08);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.passport-remaining-button[hidden] {
+  display: none;
+}
+
+.passport-journey-stats .passport-remaining-button strong {
+  color: var(--accent-yellow);
+}
+
+.passport-remaining-button:hover,
+.passport-remaining-button:focus-visible,
+.passport-remaining-button[aria-expanded='true'] {
+  outline: none;
+  border-color: rgba(251, 191, 36, 0.72);
+  color: var(--text-main);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.passport-remaining-panel {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: rgba(11, 15, 25, 0.72);
+}
+
+.passport-remaining-panel[hidden] {
+  display: none;
+}
+
+[data-theme='light'] .passport-remaining-panel {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.passport-remaining-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.passport-remaining-heading strong {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.passport-remaining-panel > p {
+  margin: 0.35rem 0 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.passport-remaining-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.45rem;
+  max-height: 210px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.passport-remaining-country {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  cursor: pointer;
+}
+
+.passport-remaining-country:hover,
+.passport-remaining-country:focus-visible {
+  outline: none;
+  border-color: rgba(0, 242, 254, 0.46);
+  background: rgba(0, 242, 254, 0.08);
+}
+
+.passport-remaining-country span {
+  min-width: 0;
+  display: grid;
+  gap: 0.08rem;
+}
+
+.passport-remaining-country strong {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.passport-remaining-country small,
+.passport-remaining-country > small {
+  color: var(--text-muted);
+  font-size: 0.64rem;
 }
 
 .passport-journey-stats strong {
@@ -3060,6 +3180,13 @@ h4 {
   filter: drop-shadow(0 0 9px rgba(139, 92, 246, 0.5));
 }
 
+.map-panel.journey-mode .map-country.is-journey-guided {
+  fill: rgba(251, 191, 36, 0.24);
+  stroke: #fef08a;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 0 9px rgba(251, 191, 36, 0.66));
+}
+
 .passport-route-layer {
   pointer-events: none;
 }
@@ -3077,6 +3204,13 @@ h4 {
 
 .passport-route-line.is-backtrack {
   stroke: rgba(0, 242, 254, 0.7);
+}
+
+.passport-route-line.is-guided {
+  stroke: var(--accent-yellow);
+  stroke-width: 3;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.72));
 }
 
 .flag-marker {
@@ -3164,6 +3298,13 @@ h4 {
   fill: rgba(139, 92, 246, 0.28);
   stroke: #a78bfa;
   stroke-width: 2.4;
+}
+
+.map-panel.journey-mode .flag-marker.is-journey-guided .flag-marker-shadow {
+  fill: rgba(251, 191, 36, 0.3);
+  stroke: #fef08a;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.88));
 }
 
 .passport-question {
@@ -4236,6 +4377,111 @@ h4 {
   background: var(--accent-red);
   color: white;
   box-shadow: var(--glow-red);
+}
+
+.passport-restart-dialog {
+  width: min(440px, calc(100vw - 2rem));
+  max-width: none;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 0;
+  color: var(--text-main);
+  background: #111827;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.62),
+    0 0 24px rgba(239, 68, 68, 0.1);
+}
+
+.passport-restart-dialog::backdrop {
+  background: rgba(3, 7, 18, 0.76);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme='light'] .passport-restart-dialog {
+  background: #f8fafc;
+  box-shadow: 0 28px 70px rgba(31, 38, 135, 0.24);
+}
+
+.passport-restart-dialog[open] {
+  animation: passport-dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.passport-restart-content {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.passport-restart-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 8px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.passport-restart-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.passport-restart-content h2 {
+  margin: 0.18rem 0 0.45rem;
+  color: var(--text-main);
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.passport-restart-content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.passport-restart-content p strong {
+  color: var(--text-main);
+}
+
+.passport-restart-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  border-top: 1px solid var(--panel-border);
+  padding: 0.9rem 1.25rem 1.1rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.passport-restart-actions .danger-btn,
+.passport-restart-actions .secondary-btn {
+  min-height: 40px;
+}
+
+@keyframes passport-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Toggle Switch Style */

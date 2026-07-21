@@ -9,7 +9,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=30" />
   </head>
   <body>
     <div class="app-container">
@@ -898,10 +898,26 @@
                   <small id="passport-route-hint">Choose a highlighted destination on the map.</small>
                 </div>
                 <div class="passport-journey-stats" aria-label="Journey statistics">
-                  <span><strong id="passport-visited-count">0</strong> visited</span>
-                  <span><strong id="passport-clean-count">0</strong> clean</span>
+                  <span title="Countries visited in this journey"><strong id="passport-visited-count">0 / 197</strong> visited</span>
+                  <span title="Correct answers out of flag questions answered"><strong id="passport-clean-count">0 / 0</strong> clean</span>
+                  <button class="passport-remaining-button" id="passport-remaining-button" type="button" aria-expanded="false" aria-controls="passport-remaining-panel" hidden>
+                    <strong id="passport-remaining-count">0</strong> left
+                  </button>
                 </div>
                 <button class="secondary-btn compact-btn" type="button" onclick="app.startPassportJourney(true)">New journey</button>
+              </div>
+              <div class="passport-remaining-panel" id="passport-remaining-panel" hidden>
+                <div class="passport-remaining-heading">
+                  <div>
+                    <span class="map-kicker">Journey navigator</span>
+                    <strong>Countries left in this journey</strong>
+                  </div>
+                  <button class="passport-question-close" id="passport-remaining-close" type="button" aria-label="Close remaining countries" title="Close">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                  </button>
+                </div>
+                <p>Choose a country and the map will guide you to the next valid stop along the shortest route.</p>
+                <div class="passport-remaining-list" id="passport-remaining-list"></div>
               </div>
             </section>
 
@@ -1179,13 +1195,40 @@
       </div>
     </div>
 
+    <dialog
+      class="passport-restart-dialog"
+      id="passport-restart-dialog"
+      aria-labelledby="passport-restart-title"
+      aria-describedby="passport-restart-copy"
+      oncancel="event.preventDefault(); app.cancelPassportJourneyRestart()"
+      onclick="if (event.target === this) app.cancelPassportJourneyRestart()"
+    >
+      <div class="passport-restart-content">
+        <div class="passport-restart-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 3 3 9 9 9" /></svg>
+        </div>
+        <div>
+          <span class="section-kicker">Passport Journey</span>
+          <h2 id="passport-restart-title">Start a new journey?</h2>
+          <p id="passport-restart-copy">
+            Your current route with <strong id="passport-restart-visited-count">0 countries</strong> visited will be reset.
+            Lifetime achievements and Passport statistics will remain intact.
+          </p>
+        </div>
+      </div>
+      <div class="passport-restart-actions">
+        <button class="secondary-btn compact-btn" id="passport-restart-cancel" type="button" onclick="app.cancelPassportJourneyRestart()">Keep journey</button>
+        <button class="danger-btn" type="button" onclick="app.confirmPassportJourneyRestart()">Start new journey</button>
+      </div>
+    </dialog>
+
     <!-- Toast Notification Container -->
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Load Data and App Controller -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-    <script src="data.js"></script>
-    <script src="app.js"></script>
+    <script src="data.js?v=30"></script>
+    <script src="app.js?v=30"></script>
   </body>
 </html>
