@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'vexilla-offline-v24';
+const CACHE_VERSION = 'vexilla-offline-v25';
 const APP_SHELL = [
   './',
   './index.html',

@@ -4248,7 +4248,7 @@ class VexillaApp {
         const a = Math.sin(latDelta / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(lngDelta / 2) ** 2;
         return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       };
-      const minimumJourneyConnections = 3;
+      const minimumJourneyConnections = 5;
       markers.forEach((marker) => {
         const existingRoutes = journeyRoutes.get(marker.flag.code);
         const routesNeeded = minimumJourneyConnections - (existingRoutes?.size || 0);
@@ -4304,9 +4304,34 @@ class VexillaApp {
         addJourneyRoute(closestBridge.fromCode, closestBridge.toCode);
         journeyComponents = getJourneyComponents();
       }
-      // Country centroids can obscure short coastal crossings; keep obvious regional gateways available.
+      // Keep multiple useful sea and air gateways available so a journey can leave
+      // a completed region without relying on one difficult-to-find connection.
       [
         ['tt', 've'],
+        ['cv', 'br'],
+        ['sn', 'br'],
+        ['gh', 'br'],
+        ['za', 'ar'],
+        ['ma', 'es'],
+        ['dz', 'es'],
+        ['tn', 'it'],
+        ['eg', 'gr'],
+        ['eg', 'sa'],
+        ['dj', 'ye'],
+        ['so', 'ye'],
+        ['ke', 'in'],
+        ['ca', 'is'],
+        ['us', 'gb'],
+        ['br', 'pt'],
+        ['ar', 'es'],
+        ['cl', 'nz'],
+        ['us', 'mh'],
+        ['id', 'au'],
+        ['id', 'pg'],
+        ['ph', 'pw'],
+        ['jp', 'fm'],
+        ['ru', 'kz'],
+        ['tr', 'ge'],
       ].forEach(([fromCode, toCode]) => addJourneyRoute(fromCode, toCode));
       let handlePassportDestination = () => false;
       const clickableChallengeCodes = new Set();
