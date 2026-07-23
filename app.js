@@ -52,6 +52,7 @@ class VexillaApp {
     this.matchHelpedIds = new Set();
     this.matchDisqualifiedIds = new Set();
     this.matchSessionFlags = [];
+    this.matchInputLocked = false;
 
     // Active Atlas filters
     this.activeFilters = {
@@ -157,7 +158,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=30', './data.js?v=30', './app.js?v=30', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=38', './data.js?v=38', './app.js?v=38', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -228,12 +229,15 @@ class VexillaApp {
         routeCodes: [],
         correct: 0,
         attempts: 0,
+        score: 0,
+        answerStreak: 0,
       },
       passportStats: {
         journeysStarted: 0,
         totalCorrect: 0,
         totalAttempts: 0,
         totalBacktracks: 0,
+        bestJourneyPoints: 0,
         visitedCodes: [],
       },
     };
@@ -288,12 +292,15 @@ class VexillaApp {
         routeCodes: [],
         correct: 0,
         attempts: 0,
+        score: 0,
+        answerStreak: 0,
       },
       passportStats: {
         journeysStarted: 0,
         totalCorrect: 0,
         totalAttempts: 0,
         totalBacktracks: 0,
+        bestJourneyPoints: 0,
         visitedCodes: [],
       },
     };
@@ -345,12 +352,16 @@ class VexillaApp {
     const currentCode = typeof journey?.currentCode === 'string' && validCodes.has(journey.currentCode) ? journey.currentCode : '';
     const visitedCodes = [...new Set(cleanCodes(journey?.visitedCodes))];
     const routeCodes = cleanCodes(journey?.routeCodes?.length ? journey.routeCodes : journey?.visitedCodes, 30);
+    const correct = Math.max(0, Math.round(Number(journey?.correct) || 0));
+    const storedScore = Number(journey?.score);
     return {
       currentCode,
       visitedCodes: currentCode && !visitedCodes.includes(currentCode) ? [...visitedCodes, currentCode] : visitedCodes,
       routeCodes: currentCode && routeCodes[routeCodes.length - 1] !== currentCode ? [...routeCodes, currentCode].slice(-30) : routeCodes,
-      correct: Math.max(0, Math.round(Number(journey?.correct) || 0)),
+      correct,
       attempts: Math.max(0, Math.round(Number(journey?.attempts) || 0)),
+      score: Number.isFinite(storedScore) ? Math.max(0, Math.round(storedScore)) : correct * 100,
+      answerStreak: Math.max(0, Math.round(Number(journey?.answerStreak) || 0)),
     };
   }
 
@@ -364,6 +375,8 @@ class VexillaApp {
       cleanCount(stats?.totalCorrect) > 0 ||
       cleanCount(stats?.totalAttempts) > 0 ||
       cleanCount(stats?.totalBacktracks) > 0 ||
+      cleanCount(stats?.bestJourneyPoints) > 0 ||
+      cleanCount(stats?.bestJourneyScore) > 0 ||
       existingVisitedCodes.length > 0;
     const existingJourney = this.sanitizePassportJourney(journey, validCodes);
     const inferredBacktracks = existingJourney.routeCodes.reduce(
@@ -375,6 +388,7 @@ class VexillaApp {
       totalCorrect: hasRecordedStats ? cleanCount(stats?.totalCorrect) : existingJourney.correct,
       totalAttempts: hasRecordedStats ? cleanCount(stats?.totalAttempts) : existingJourney.attempts,
       totalBacktracks: hasRecordedStats ? cleanCount(stats?.totalBacktracks) : inferredBacktracks,
+      bestJourneyPoints: Math.max(cleanCount(stats?.bestJourneyPoints), cleanCount(stats?.bestJourneyScore) * 100, existingJourney.score),
       visitedCodes: hasRecordedStats ? existingVisitedCodes : existingJourney.visitedCodes,
     };
   }
@@ -697,17 +711,35 @@ class VexillaApp {
   }
 
   resetProgressData() {
-    if (confirm('Are you sure you want to delete all your progress, learned flags, high scores, and achievements? This action is permanent.')) {
-      localStorage.removeItem('vexilla_state');
-      this.state = this.loadState();
-      this.viewedCountries.clear();
-      this.saveState();
+    const dialog = document.getElementById('reset-progress-dialog');
+    if (!dialog || typeof dialog.showModal !== 'function') return;
 
-      this.init();
-      this.switchView('dashboard');
-      this.spawnToast('Progress Reset', 'All user data has been cleared.', '🗑️');
-      this.playAudioTone(150, 'sawtooth', 0.3);
-    }
+    this.resetProgressTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!dialog.open) dialog.showModal();
+    window.requestAnimationFrame(() => document.getElementById('reset-progress-cancel')?.focus());
+  }
+
+  cancelResetProgressData() {
+    const dialog = document.getElementById('reset-progress-dialog');
+    if (dialog?.open) dialog.close();
+    this.resetProgressTrigger?.focus();
+    this.resetProgressTrigger = null;
+  }
+
+  confirmResetProgressData() {
+    const dialog = document.getElementById('reset-progress-dialog');
+    if (dialog?.open) dialog.close();
+    this.resetProgressTrigger = null;
+
+    localStorage.removeItem('vexilla_state');
+    this.state = this.loadState();
+    this.viewedCountries.clear();
+    this.saveState();
+
+    this.init();
+    this.switchView('dashboard');
+    this.spawnToast('Progress Reset', 'All user data has been cleared.', '🗑️');
+    this.playAudioTone(150, 'sawtooth', 0.3);
   }
 
   // --- AUDIO SYNTHESIZER ---
@@ -757,6 +789,21 @@ class VexillaApp {
   playCorrectChime() {
     this.playAudioTone(587.33, 'sine', 0.1, 0); // D5
     this.playAudioTone(880, 'sine', 0.2, 0.06); // A5
+  }
+
+  playPassportArrivalChime() {
+    this.playAudioTone(659.25, 'triangle', 0.14, 0); // E5
+    this.playAudioTone(880, 'sine', 0.16, 0.09); // A5
+    this.playAudioTone(1108.73, 'sine', 0.2, 0.18); // C#6
+    this.playAudioTone(1318.51, 'sine', 0.34, 0.29); // E6
+  }
+
+  getPassportAnswerPoints(streak) {
+    return 100 + this.getPassportStreakBonus(streak);
+  }
+
+  getPassportStreakBonus(streak) {
+    return Math.min(5, Math.max(0, streak - 1)) * 20;
   }
 
   // --- SPA ROUTER ---
@@ -1828,11 +1875,7 @@ class VexillaApp {
     const studiedFlags = this.getFlagStats().filter((item) => item.attempts > 0).length;
     const detailsViewed = this.state.activityCounts?.detailsViewed || 0;
     const passportStats = this.sanitizePassportStats(this.state.passportStats);
-    const passportContinents = new Set(
-      passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean),
-    ).size;
     const passportAccuracy = passportStats.totalAttempts ? Math.round((passportStats.totalCorrect / passportStats.totalAttempts) * 100) : null;
-    const passportContinentLabel = passportContinents === 1 ? 'continent' : 'continents';
 
     const insightCards = [
       { label: 'Explorer XP', value: `${explorer.xp} XP`, detail: `${explorer.xpRemaining} XP to Level ${explorer.level + 1}` },
@@ -1843,10 +1886,10 @@ class VexillaApp {
       { label: 'Details viewed', value: `${detailsViewed}`, detail: 'Flag detail panels opened' },
       {
         label: 'Passport Journey',
-        value: `${passportStats.visitedCodes.length} destinations`,
+        value: `${passportStats.bestJourneyPoints.toLocaleString()} best points`,
         detail: passportAccuracy == null
           ? 'Start a journey to earn passport stamps'
-          : `${passportAccuracy}% accuracy across ${passportContinents} ${passportContinentLabel}`,
+          : `${passportStats.visitedCodes.length} lifetime destinations • ${passportAccuracy}% lifetime accuracy`,
       },
     ];
 
@@ -2132,6 +2175,7 @@ class VexillaApp {
   startMatchGame() {
     this.initAudio();
     this.firstSelectedCard = null;
+    this.matchInputLocked = false;
     this.updateContinentControls('match');
 
     // Select 6 random flags
@@ -2183,16 +2227,27 @@ class VexillaApp {
     document.getElementById('match-summary-panel').style.display = 'none';
     board.style.display = 'grid';
 
+    const shortcutCounters = { flag: 0, country: 0 };
+    const shortcutKeys = {
+      country: ['Q', 'W', 'E', 'A', 'S', 'D'],
+      flag: ['I', 'O', 'P', 'J', 'K', 'L'],
+    };
     this.matchCards.forEach((cardData) => {
+      const shortcutIndex = shortcutCounters[cardData.type]++;
+      const shortcutKey = shortcutKeys[cardData.type][shortcutIndex];
       const card = document.createElement('div');
       card.className = `match-card glass-panel ${cardData.type}-card`;
       card.setAttribute('data-id', cardData.id);
       card.setAttribute('data-type', cardData.type);
+      card.setAttribute('data-shortcut', shortcutKey.toLowerCase());
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
       card.classList.add('keyboard-action');
       card.setAttribute('aria-pressed', 'false');
-      card.setAttribute('aria-label', cardData.type === 'flag' ? `Select flag card for ${cardData.name}` : `Select country card ${cardData.name}`);
+      card.setAttribute(
+        'aria-label',
+        `${cardData.type === 'flag' ? `Select flag card for ${cardData.name}` : `Select country card ${cardData.name}`}. Shortcut ${shortcutKey}.`,
+      );
 
       if (cardData.type === 'flag') {
         card.innerHTML = `
@@ -2209,6 +2264,12 @@ class VexillaApp {
       } else {
         card.textContent = cardData.content;
       }
+
+      const shortcut = document.createElement('kbd');
+      shortcut.className = 'match-card-shortcut';
+      shortcut.setAttribute('aria-hidden', 'true');
+      shortcut.textContent = shortcutKey;
+      card.appendChild(shortcut);
 
       card.onclick = () => this.handleMatchCardSelect(card);
       board.appendChild(card);
@@ -2336,7 +2397,7 @@ class VexillaApp {
   }
 
   handleMatchCardSelect(cardEl) {
-    if (cardEl.classList.contains('matched')) return;
+    if (this.matchInputLocked || cardEl.classList.contains('matched')) return;
 
     if (cardEl.classList.contains('selected')) {
       if (this.firstSelectedCard === cardEl) {
@@ -2389,6 +2450,7 @@ class VexillaApp {
       }
     } else {
       // MISMATCH
+      this.matchInputLocked = true;
       cardEl.classList.add('selected');
       cardEl.setAttribute('aria-pressed', 'true');
       const prevCard = this.firstSelectedCard;
@@ -2411,6 +2473,7 @@ class VexillaApp {
         cardEl.classList.remove('selected', 'match-mismatch');
         prevCard.setAttribute('aria-pressed', 'false');
         cardEl.setAttribute('aria-pressed', 'false');
+        this.matchInputLocked = false;
       }, 500);
     }
   }
@@ -3423,7 +3486,7 @@ class VexillaApp {
   showKeyboardShortcuts() {
     this.spawnToast(
       'Keyboard shortcuts',
-      'Alt+1-7 views, Alt+S settings, A-D answers, F flip card, K learned, R review, / search or flag finder, J Passport Journey, + - 0 map zoom.',
+      'Alt+1-7 views, Alt+S settings, A-D quiz answers, QWE/ASD match countries, IOP/JKL match flags, F flip card, K learned, R review, / search or flag finder, J Passport Journey, + - 0 map zoom.',
       '⌨',
       12000,
     );
@@ -3461,6 +3524,16 @@ class VexillaApp {
           event.preventDefault();
           nextButton.click();
         }
+      }
+      return;
+    }
+
+    if (this.currentView === 'match') {
+      const card = document.querySelector(`#match-board .match-card[data-shortcut="${key}"]`);
+      if (card instanceof HTMLElement && !card.classList.contains('matched') && !this.matchInputLocked) {
+        event.preventDefault();
+        card.focus({ preventScroll: true });
+        card.click();
       }
       return;
     }
@@ -5138,8 +5211,12 @@ class VexillaApp {
       const journeyCurrentName = document.getElementById('passport-current-name');
       const journeyRouteTrail = document.getElementById('passport-route-trail');
       const journeyRouteHint = document.getElementById('passport-route-hint');
-      const journeyVisitedCount = document.getElementById('passport-visited-count');
-      const journeyCleanCount = document.getElementById('passport-clean-count');
+      const journeyScore = document.getElementById('passport-score');
+      const journeyCorrectCount = document.getElementById('passport-correct-count');
+      const journeyBestScore = document.getElementById('passport-best-score');
+      const journeyStreakStat = document.getElementById('passport-streak-stat');
+      const journeyStreakCount = document.getElementById('passport-streak-count');
+      const journeyStreakBonus = document.getElementById('passport-streak-bonus');
       const journeyRemainingButton = document.getElementById('passport-remaining-button');
       const journeyRemainingCount = document.getElementById('passport-remaining-count');
       const journeyRemainingPanel = document.getElementById('passport-remaining-panel');
@@ -5198,31 +5275,44 @@ class VexillaApp {
       const renderJourneyRemainingList = () => {
         if (!journeyRemainingList) return;
         const journey = getJourneyState();
+        const remainingFlags = getRemainingJourneyFlags();
         journeyRemainingList.textContent = '';
-        getRemainingJourneyFlags().forEach((flag) => {
-          const pathCodes = getJourneyPath(journey.currentCode, flag.code);
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'passport-remaining-country';
-          button.setAttribute('aria-label', `Guide journey to ${flag.name}`);
-          const copy = document.createElement('span');
-          const name = document.createElement('strong');
-          const continent = document.createElement('small');
-          const stops = document.createElement('small');
-          name.textContent = flag.name;
-          continent.textContent = flag.continent;
-          stops.textContent = pathCodes.length > 1 ? `${pathCodes.length - 1} stops` : 'Route unavailable';
-          copy.append(name, continent);
-          button.append(copy, stops);
-          button.addEventListener('click', () => {
-            journeyGuideTargetCode = flag.code;
-            closeJourneyRemaining();
-            renderJourneyMapState();
-            const nextCode = getJourneyPath(getJourneyState().currentCode, flag.code)[1];
-            const nextFlag = this.flags.find((item) => item.code === nextCode);
-            if (nextFlag) focusMainMapOnFlag(nextFlag, { preserveScale: true });
+        const continentGroups = new Map();
+        remainingFlags.forEach((flag) => {
+          if (!continentGroups.has(flag.continent)) continentGroups.set(flag.continent, []);
+          continentGroups.get(flag.continent).push(flag);
+        });
+        continentGroups.forEach((flags, continentName) => {
+          const groupHeading = document.createElement('div');
+          groupHeading.className = 'passport-remaining-continent';
+          const headingName = document.createElement('strong');
+          const headingCount = document.createElement('small');
+          headingName.textContent = continentName;
+          headingCount.textContent = `${flags.length} ${flags.length === 1 ? 'country' : 'countries'}`;
+          groupHeading.append(headingName, headingCount);
+          journeyRemainingList.appendChild(groupHeading);
+
+          flags.forEach((flag) => {
+            const pathCodes = getJourneyPath(journey.currentCode, flag.code);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'passport-remaining-country';
+            button.setAttribute('aria-label', `Guide journey to ${flag.name}`);
+            const name = document.createElement('strong');
+            const stops = document.createElement('small');
+            name.textContent = flag.name;
+            stops.textContent = pathCodes.length > 1 ? `${pathCodes.length - 1} stops` : 'Route unavailable';
+            button.append(name, stops);
+            button.addEventListener('click', () => {
+              journeyGuideTargetCode = flag.code;
+              closeJourneyRemaining();
+              renderJourneyMapState();
+              const nextCode = getJourneyPath(getJourneyState().currentCode, flag.code)[1];
+              const nextFlag = this.flags.find((item) => item.code === nextCode);
+              if (nextFlag) focusMainMapOnFlag(nextFlag, { preserveScale: true });
+            });
+            journeyRemainingList.appendChild(button);
           });
-          journeyRemainingList.appendChild(button);
         });
       };
       const cancelJourneyQuestion = () => {
@@ -5239,6 +5329,7 @@ class VexillaApp {
       };
       const renderJourneyMapState = () => {
         const journey = getJourneyState();
+        const passportStats = getPassportStats();
         const currentCode = journey.currentCode;
         const neighborCodes = new Set(getJourneyNeighborCodes(currentCode));
         const visitedCodes = new Set(journey.visitedCodes);
@@ -5332,16 +5423,20 @@ class VexillaApp {
         }
         const journeyVisitedTotal = visitedCodes.size;
         const remainingTotal = Math.max(0, this.flags.length - journeyVisitedTotal);
-        if (journeyVisitedCount) journeyVisitedCount.textContent = `${journeyVisitedTotal} / ${this.flags.length}`;
+        if (journeyScore) journeyScore.textContent = journey.score.toLocaleString();
         if (journeyRemainingCount) journeyRemainingCount.textContent = String(remainingTotal);
         if (journeyRemainingButton) journeyRemainingButton.hidden = remainingTotal === 0;
         if (!remainingTotal) closeJourneyRemaining();
-        if (journeyCleanCount) journeyCleanCount.textContent = `${journey.correct} / ${journey.attempts}`;
+        if (journeyCorrectCount) journeyCorrectCount.textContent = `${journey.correct} / ${journey.attempts}`;
+        if (journeyBestScore) journeyBestScore.textContent = passportStats.bestJourneyPoints.toLocaleString();
+        if (journeyStreakCount) journeyStreakCount.textContent = String(journey.answerStreak);
+        if (journeyStreakBonus) journeyStreakBonus.textContent = `next +${this.getPassportStreakBonus(journey.answerStreak + 1)} bonus`;
       };
       const travelPassportToFlag = (destination) => {
         const journey = getJourneyState();
         const passportStats = getPassportStats();
         const isBacktrack = journey.visitedCodes.includes(destination.code);
+        const reachedGuideTarget = journeyGuideTargetCode === destination.code;
         journey.currentCode = destination.code;
         if (!journey.visitedCodes.includes(destination.code)) journey.visitedCodes.push(destination.code);
         journey.routeCodes.push(destination.code);
@@ -5352,6 +5447,7 @@ class VexillaApp {
         cancelJourneyQuestion();
         renderJourneyMapState();
         focusMainMapOnFlag(destination, { preserveScale: true });
+        if (reachedGuideTarget) this.playPassportArrivalChime();
         this.checkAchievements();
       };
       const movePassportToDestination = () => {
@@ -5370,16 +5466,32 @@ class VexillaApp {
         this.state.activityCounts.map = (this.state.activityCounts.map || 0) + 1;
         if (isCorrect) {
           journey.correct += 1;
+          journey.answerStreak += 1;
+          const streakBonus = this.getPassportStreakBonus(journey.answerStreak);
+          const pointsEarned = 100 + streakBonus;
+          journey.score += pointsEarned;
           passportStats.totalCorrect += 1;
+          passportStats.bestJourneyPoints = Math.max(passportStats.bestJourneyPoints, journey.score);
           button.classList.add('correct');
           this.recordFlagResult(destinationFlag.code, 'correct');
           this.awardXp(8);
           this.playCorrectChime();
           if (journeyQuestionTitle) journeyQuestionTitle.textContent = `Correct: ${destinationFlag.name}`;
-          if (journeyQuestionRoute) journeyQuestionRoute.textContent = 'Passport stamped. Moving to your next stop...';
+          if (journeyQuestionRoute) {
+            const streakCopy = journey.answerStreak > 1 ? ` • ${journey.answerStreak}-answer streak` : '';
+            const bonusCopy = streakBonus ? ` (100 base + ${streakBonus} streak bonus)` : ' (100 base)';
+            journeyQuestionRoute.classList.remove('is-streak-reset');
+            journeyQuestionRoute.textContent = `+${pointsEarned} points${bonusCopy}${streakCopy}. Passport stamped!`;
+          }
+          journeyStreakStat?.classList.remove('is-resetting', 'is-growing');
+          if (journeyStreakStat) void journeyStreakStat.offsetWidth;
+          journeyStreakStat?.classList.add('is-growing');
+          window.setTimeout(() => journeyStreakStat?.classList.remove('is-growing'), 650);
           this.saveState();
           journeyAdvanceTimeout = window.setTimeout(movePassportToDestination, 650);
         } else {
+          const brokenStreak = journey.answerStreak;
+          journey.answerStreak = 0;
           button.classList.add('incorrect');
           answerButtons.forEach((answerButton) => {
             if (answerButton.dataset.flagCode === destinationFlag.code) answerButton.classList.add('correct');
@@ -5387,7 +5499,18 @@ class VexillaApp {
           this.recordFlagResult(destinationFlag.code, 'incorrect');
           this.playFailureBuzz();
           if (journeyQuestionTitle) journeyQuestionTitle.textContent = `This is ${destinationFlag.name}`;
-          if (journeyQuestionRoute) journeyQuestionRoute.textContent = 'Take a moment to lock in the correct flag before travelling onward.';
+          if (journeyQuestionRoute) {
+            journeyQuestionRoute.classList.toggle('is-streak-reset', brokenStreak > 0);
+            journeyQuestionRoute.textContent = brokenStreak
+              ? `Streak reset: ${brokenStreak} → 0. No points this stop.`
+              : 'No points this stop. Build a streak with your next correct answer.';
+          }
+          if (brokenStreak > 0) {
+            journeyStreakStat?.classList.remove('is-growing', 'is-resetting');
+            if (journeyStreakStat) void journeyStreakStat.offsetWidth;
+            journeyStreakStat?.classList.add('is-resetting');
+            window.setTimeout(() => journeyStreakStat?.classList.remove('is-resetting'), 850);
+          }
           if (journeyLearningTitle) journeyLearningTitle.textContent = destinationFlag.name;
           if (journeyLearningCopy) journeyLearningCopy.textContent = this.getMemoryHook(destinationFlag) || destinationFlag.fact;
           if (journeyLearningCard) journeyLearningCard.hidden = false;
@@ -5407,7 +5530,10 @@ class VexillaApp {
         journeyQuestion.hidden = false;
         if (journeyLearningCard) journeyLearningCard.hidden = true;
         if (journeyQuestionTitle) journeyQuestionTitle.textContent = `Which flag belongs to ${destinationFlag.name}?`;
-        if (journeyQuestionRoute) journeyQuestionRoute.textContent = `${currentFlag.name} -> ${destinationFlag.name}`;
+        if (journeyQuestionRoute) {
+          journeyQuestionRoute.classList.remove('is-streak-reset');
+          journeyQuestionRoute.textContent = `${currentFlag.name} -> ${destinationFlag.name}`;
+        }
         countryLayer.selectAll('.map-country').classed('is-journey-target', (country) => getFlagForCountry(country)?.code === destinationFlag.code);
         markerGroups.classed('is-journey-target', (marker) => marker.flag.code === destinationFlag.code);
         journeyAnswerGrid.textContent = '';
@@ -5454,6 +5580,8 @@ class VexillaApp {
             routeCodes: [startFlag.code],
             correct: 0,
             attempts: 0,
+            score: 0,
+            answerStreak: 0,
           };
           journeyGuideTargetCode = '';
           const passportStats = getPassportStats();

@@ -9,7 +9,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=38" />
   </head>
   <body>
     <div class="app-container">
@@ -699,6 +699,11 @@
             </div>
           </div>
 
+          <div class="match-keyboard-legend" aria-label="Match game keyboard shortcuts">
+            <span><kbd>QWE · ASD</kbd> countries</span>
+            <span><kbd>IOP · JKL</kbd> flags</span>
+          </div>
+
           <!-- Grid Container for matching cards -->
           <div class="match-grid-container" id="match-board">
             <!-- Cards are generated dynamically in JS -->
@@ -881,7 +886,7 @@
                 <div>
                   <span class="map-kicker">Choose your own route</span>
                   <h3>Travel by recognizing each destination's flag</h3>
-                  <p>Travel through all 197 countries using land borders and nearby sea routes.</p>
+                  <p>Correct answers earn 100 points. Each consecutive answer adds a 20-point bonus, up to +100; a miss resets the streak.</p>
                 </div>
                 <button class="primary-btn compact-btn" id="passport-start-button" type="button" onclick="app.startPassportJourney()">Start journey</button>
               </div>
@@ -898,8 +903,13 @@
                   <small id="passport-route-hint">Choose a highlighted destination on the map.</small>
                 </div>
                 <div class="passport-journey-stats" aria-label="Journey statistics">
-                  <span title="Countries visited in this journey"><strong id="passport-visited-count">0 / 197</strong> visited</span>
-                  <span title="Correct answers out of flag questions answered"><strong id="passport-clean-count">0 / 0</strong> clean</span>
+                  <span class="passport-score-stat" title="Points earned in this journey"><strong id="passport-score">0</strong> score</span>
+                  <span class="passport-best-stat" title="Most points earned in one journey"><strong id="passport-best-score">0</strong> best</span>
+                  <span class="passport-streak-stat" id="passport-streak-stat" title="Bonus available on your next correct answer" aria-live="polite">
+                    <strong id="passport-streak-count">0</strong> streak
+                    <small id="passport-streak-bonus">next +0 bonus</small>
+                  </span>
+                  <span title="Correct answers out of flag questions answered"><strong id="passport-correct-count">0 / 0</strong> correct</span>
                   <button class="passport-remaining-button" id="passport-remaining-button" type="button" aria-expanded="false" aria-controls="passport-remaining-panel" hidden>
                     <strong id="passport-remaining-count">0</strong> left
                   </button>
@@ -1098,6 +1108,8 @@
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">R</kbd><span>Needs review</span></div>
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">A</kbd><span>-</span><kbd class="shortcut-key">D</kbd><span>Quiz answers</span></div>
                   <div class="settings-shortcut-line"><kbd class="shortcut-key">N</kbd><span>Next quiz helper card</span></div>
+                  <div class="settings-shortcut-line"><kbd class="shortcut-key">QWE</kbd><span>/</span><kbd class="shortcut-key">ASD</kbd><span>Match country tiles (left hand)</span></div>
+                  <div class="settings-shortcut-line"><kbd class="shortcut-key">IOP</kbd><span>/</span><kbd class="shortcut-key">JKL</kbd><span>Match flag tiles (right hand)</span></div>
                 </div>
                 <div class="settings-shortcut-group">
                   <span class="settings-shortcut-group-label">Find & Map</span>
@@ -1196,15 +1208,15 @@
     </div>
 
     <dialog
-      class="passport-restart-dialog"
+      class="confirmation-dialog"
       id="passport-restart-dialog"
       aria-labelledby="passport-restart-title"
       aria-describedby="passport-restart-copy"
       oncancel="event.preventDefault(); app.cancelPassportJourneyRestart()"
       onclick="if (event.target === this) app.cancelPassportJourneyRestart()"
     >
-      <div class="passport-restart-content">
-        <div class="passport-restart-icon" aria-hidden="true">
+      <div class="confirmation-dialog-content">
+        <div class="confirmation-dialog-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 3 3 9 9 9" /></svg>
         </div>
         <div>
@@ -1212,13 +1224,40 @@
           <h2 id="passport-restart-title">Start a new journey?</h2>
           <p id="passport-restart-copy">
             Your current route with <strong id="passport-restart-visited-count">0 countries</strong> visited will be reset.
-            Lifetime achievements and Passport statistics will remain intact.
+            Your best score, lifetime achievements, and Passport statistics will remain intact.
           </p>
         </div>
       </div>
-      <div class="passport-restart-actions">
+      <div class="confirmation-dialog-actions">
         <button class="secondary-btn compact-btn" id="passport-restart-cancel" type="button" onclick="app.cancelPassportJourneyRestart()">Keep journey</button>
         <button class="danger-btn" type="button" onclick="app.confirmPassportJourneyRestart()">Start new journey</button>
+      </div>
+    </dialog>
+
+    <dialog
+      class="confirmation-dialog"
+      id="reset-progress-dialog"
+      aria-labelledby="reset-progress-title"
+      aria-describedby="reset-progress-copy"
+      oncancel="event.preventDefault(); app.cancelResetProgressData()"
+      onclick="if (event.target === this) app.cancelResetProgressData()"
+    >
+      <div class="confirmation-dialog-content">
+        <div class="confirmation-dialog-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M8 6V4h8v2" /><line x1="10" y1="10" x2="10" y2="16" /><line x1="14" y1="10" x2="14" y2="16" /></svg>
+        </div>
+        <div>
+          <span class="section-kicker">Settings</span>
+          <h2 id="reset-progress-title">Reset all progress?</h2>
+          <p id="reset-progress-copy">
+            This permanently deletes learned flags, scores, streaks, achievements, XP, and Passport progress.
+            <strong>This cannot be undone.</strong>
+          </p>
+        </div>
+      </div>
+      <div class="confirmation-dialog-actions">
+        <button class="secondary-btn compact-btn" id="reset-progress-cancel" type="button" onclick="app.cancelResetProgressData()">Keep my progress</button>
+        <button class="danger-btn" type="button" onclick="app.confirmResetProgressData()">Reset all data</button>
       </div>
     </dialog>
 
@@ -1228,7 +1267,7 @@
     <!-- Load Data and App Controller -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-    <script src="data.js?v=30"></script>
-    <script src="app.js?v=30"></script>
+    <script src="data.js?v=38"></script>
+    <script src="app.js?v=38"></script>
   </body>
 </html>
