@@ -9,7 +9,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="styles.css?v=38" />
+    <link rel="stylesheet" href="styles.css?v=53" />
   </head>
   <body>
     <div class="app-container">
@@ -108,6 +108,28 @@
 
       <!-- Main Content Panel -->
       <main class="main-content">
+        <aside class="global-xp-status" id="global-xp-status" aria-label="Explorer XP progress" hidden>
+          <div class="global-xp-heading">
+            <span class="global-xp-level" id="global-xp-level">Level 1</span>
+            <strong id="global-xp-total">0 XP</strong>
+          </div>
+          <div
+            class="global-xp-meter"
+            id="global-xp-meter"
+            role="progressbar"
+            aria-label="XP progress to next explorer level"
+            aria-valuemin="0"
+            aria-valuemax="250"
+            aria-valuenow="0"
+          >
+            <div id="global-xp-bar"></div>
+          </div>
+          <div class="global-xp-caption">
+            <span id="global-xp-progress">0 / 250 XP</span>
+            <strong id="global-xp-next">250 XP to Level 2</strong>
+          </div>
+        </aside>
+
         <!-- ================= DASHBOARD VIEW ================= -->
         <section id="dashboard-view" class="view-section active">
           <header class="page-header">
@@ -449,7 +471,8 @@
                   <div class="flashcard-flag-box">
                     <img src="" id="card-flag-img" class="flashcard-flag" alt="Flag to study" />
                   </div>
-                  <span class="card-prompt">Click or press <kbd class="shortcut-key">F</kbd> to reveal details</span>
+                  <span class="card-prompt keyboard-only-hint">Click or press <kbd class="shortcut-key">F</kbd> to reveal details</span>
+                  <span class="card-prompt touch-only-hint">Tap to reveal details</span>
                 </div>
                 <!-- BACK FACE -->
                 <div class="card-face card-back">
@@ -724,7 +747,7 @@
             </div>
 
             <div class="summary-btn-group">
-              <button class="secondary-btn" onclick="app.startMatchGame()">Play Again</button>
+              <button class="secondary-btn" id="match-play-again-button" onclick="app.startMatchGame()">Play Again</button>
               <button class="level-btn" style="background: linear-gradient(135deg, var(--accent-purple) 0%, #7b2cbf 100%); box-shadow: var(--glow-purple)" onclick="app.switchView('dashboard')">
                 Home
               </button>
@@ -886,7 +909,10 @@
                 <div>
                   <span class="map-kicker">Choose your own route</span>
                   <h3>Travel by recognizing each destination's flag</h3>
-                  <p>Correct answers earn 100 points. Each consecutive answer adds a 20-point bonus, up to +100; a miss resets the streak.</p>
+                  <p>
+                    Correct answers earn journey score and 10 Explorer XP. Every 10 flag questions also awards the same accuracy and perfect XP bonuses as Quiz Mode.
+                    Score streak bonuses have no limit; a miss resets the streak.
+                  </p>
                 </div>
                 <button class="primary-btn compact-btn" id="passport-start-button" type="button" onclick="app.startPassportJourney()">Start journey</button>
               </div>
@@ -900,10 +926,12 @@
                 </div>
                 <div class="passport-route-copy">
                   <span id="passport-route-trail"></span>
-                  <small id="passport-route-hint">Choose a highlighted destination on the map.</small>
+                  <small id="passport-route-hint" aria-live="polite">Choose a highlighted destination on the map.</small>
                 </div>
                 <div class="passport-journey-stats" aria-label="Journey statistics">
-                  <span class="passport-score-stat" title="Points earned in this journey"><strong id="passport-score">0</strong> score</span>
+                  <span class="passport-score-stat" title="Points earned in this journey">
+                    <strong id="passport-score">0</strong> score
+                  </span>
                   <span class="passport-best-stat" title="Most points earned in one journey"><strong id="passport-best-score">0</strong> best</span>
                   <span class="passport-streak-stat" id="passport-streak-stat" title="Bonus available on your next correct answer" aria-live="polite">
                     <strong id="passport-streak-count">0</strong> streak
@@ -1084,6 +1112,19 @@
               </div>
             </div>
 
+            <div class="settings-row">
+              <div class="settings-info">
+                <span class="settings-label">Celebration Effects</span>
+                <span class="settings-desc">Play the full starburst animation when you reach a new Explorer level.</span>
+              </div>
+              <div class="settings-action">
+                <label class="switch">
+                  <input type="checkbox" id="settings-celebration-switch" checked onchange="app.toggleCelebrationEffects(this.checked)" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
             <div class="settings-row settings-shortcuts-row">
               <div class="settings-info">
                 <span class="settings-label">Keyboard Shortcuts</span>
@@ -1208,6 +1249,63 @@
     </div>
 
     <dialog
+      class="level-up-dialog"
+      id="level-up-dialog"
+      aria-labelledby="level-up-title"
+      aria-describedby="level-up-message"
+      oncancel="event.preventDefault(); app.closeLevelUpCelebration()"
+      onclick="if (event.target === this) app.closeLevelUpCelebration()"
+    >
+      <div class="level-up-celebration">
+        <div class="level-up-burst" aria-hidden="true">
+          <i style="--ray: 0"></i><i style="--ray: 1"></i><i style="--ray: 2"></i><i style="--ray: 3"></i>
+          <i style="--ray: 4"></i><i style="--ray: 5"></i><i style="--ray: 6"></i><i style="--ray: 7"></i>
+          <i style="--ray: 8"></i><i style="--ray: 9"></i><i style="--ray: 10"></i><i style="--ray: 11"></i>
+          <div class="level-up-medallion">
+            <span>Level</span>
+            <strong id="level-up-number">2</strong>
+          </div>
+        </div>
+
+        <span class="section-kicker">Explorer level up</span>
+        <h2 id="level-up-title">You reached Level 2!</h2>
+        <p id="level-up-message">Your latest XP carried you into a new Explorer level.</p>
+
+        <div class="level-up-reward-row">
+          <span>
+            <small>Latest reward</small>
+            <strong id="level-up-award">+0 XP</strong>
+          </span>
+          <span>
+            <small>Explorer total</small>
+            <strong id="level-up-total">0 total XP</strong>
+          </span>
+        </div>
+
+        <div class="level-up-progress">
+          <div class="level-up-progress-heading">
+            <span id="level-up-next-label">Progress to Level 3</span>
+            <strong id="level-up-next-value">300 XP needed</strong>
+          </div>
+          <div
+            class="level-up-meter"
+            id="level-up-meter"
+            role="progressbar"
+            aria-label="XP progress to the next Explorer level"
+            aria-valuemin="0"
+            aria-valuemax="300"
+            aria-valuenow="0"
+          >
+            <div id="level-up-progress-bar"></div>
+          </div>
+          <small id="level-up-progress-copy">0 / 300 XP</small>
+        </div>
+
+        <button class="primary-btn" id="level-up-continue" type="button" onclick="app.closeLevelUpCelebration()">Continue exploring</button>
+      </div>
+    </dialog>
+
+    <dialog
       class="confirmation-dialog"
       id="passport-restart-dialog"
       aria-labelledby="passport-restart-title"
@@ -1267,7 +1365,7 @@
     <!-- Load Data and App Controller -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-    <script src="data.js?v=38"></script>
-    <script src="app.js?v=38"></script>
+    <script src="data.js?v=53"></script>
+    <script src="app.js?v=53"></script>
   </body>
 </html>
