@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=66', './data.js?v=66', './app.js?v=66', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=67', './data.js?v=67', './app.js?v=67', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -1186,6 +1186,10 @@ class VexillaApp {
     return continent === 'North America' || continent === 'South America' ? 'Americas' : continent;
   }
 
+  getContinentLabel(flag) {
+    return flag?.continentLabel || flag?.continent || '';
+  }
+
   matchesContinentSelection(flagContinent, selectedContinents = ['all']) {
     return selectedContinents.includes('all') || selectedContinents.includes(flagContinent) || selectedContinents.includes(this.getContinentFamily(flagContinent));
   }
@@ -1484,7 +1488,7 @@ class VexillaApp {
     if (countryName) countryName.textContent = activeFlag.name;
 
     const metaContinent = document.getElementById('card-meta-continent');
-    if (metaContinent) metaContinent.textContent = activeFlag.continent;
+    if (metaContinent) metaContinent.textContent = this.getContinentLabel(activeFlag);
 
     const metaDiff = document.getElementById('card-meta-difficulty');
     if (metaDiff) {
@@ -2742,7 +2746,7 @@ class VexillaApp {
           <div class="encyclopedia-list-content">
             <div class="encyclopedia-list-heading">
               <span class="encyclopedia-list-name">${flag.name}</span>
-              <span class="encyclopedia-list-continent">${flag.continent}</span>
+              <span class="encyclopedia-list-continent">${this.getContinentLabel(flag)}</span>
               <button class="atlas-map-link" type="button" aria-label="Show ${flag.name} on the world map" onclick="app.navigateAtlasFlagToMap('${flag.code}', event)">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path><path d="M9 3v15"></path><path d="M15 6v15"></path></svg>
                 <span>Map</span>
@@ -3549,7 +3553,7 @@ class VexillaApp {
     });
     document.getElementById('modal-country-name').textContent = flag.name;
     document.getElementById('modal-capital').textContent = flag.capital;
-    document.getElementById('modal-continent').textContent = flag.continent;
+    document.getElementById('modal-continent').textContent = this.getContinentLabel(flag);
 
     const difficulties = ['Beginner', 'Intermediate', 'Expert'];
     document.getElementById('modal-difficulty').textContent = difficulties[flag.difficulty - 1];
@@ -4250,7 +4254,7 @@ class VexillaApp {
     const locatorSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     locatorSvg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
     locatorSvg.setAttribute('role', 'img');
-    locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
+    locatorSvg.setAttribute('aria-label', `Location of ${flag.name} in ${this.getContinentLabel(flag)}`);
     locatorSvg.classList.add('map-unplaced-locator-svg');
 
     const locatorOcean = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -4449,6 +4453,7 @@ class VexillaApp {
         .attr('class', (d) => {
           const flag = getFlagForCountry(d);
           if (!flag) return 'map-country';
+          if (flag.code === 'ru') return 'map-country has-flag-data transcontinental-russia';
           const continentClass = flag.continent.toLowerCase().replace(/\s+/g, '-');
           return `map-country has-flag-data continent-${continentClass}`;
         })
@@ -4463,6 +4468,54 @@ class VexillaApp {
         })
         .append('title')
         .text((d) => d.properties?.name || 'Country');
+
+      const russiaCountry = countries.find((country) => getFlagForCountry(country)?.code === 'ru');
+      if (russiaCountry) {
+        const russiaClipId = 'map-russia-continent-clip';
+        const russiaBoundaryCoordinates = [
+          [68.5, 72],
+          [67.5, 69],
+          [65.5, 65.5],
+          [63.5, 62],
+          [61.5, 58.5],
+          [59.5, 55],
+          [58.5, 52.5],
+          [57.5, 50.8],
+          [54.5, 49.5],
+          [51.8, 47.2],
+        ];
+        const russiaBoundaryPoints = russiaBoundaryCoordinates.map((coordinates) => projection(coordinates));
+        const [northPoint] = russiaBoundaryPoints;
+        const southPoint = russiaBoundaryPoints[russiaBoundaryPoints.length - 1];
+        const boundarySegments = russiaBoundaryPoints.map(([x, y]) => `L${x},${y}`).join('');
+
+        d3svg
+          .append('defs')
+          .append('clipPath')
+          .attr('id', russiaClipId)
+          .append('path')
+          .attr('d', path(russiaCountry));
+
+        const russiaSplitLayer = countryLayer
+          .append('g')
+          .attr('class', 'russia-continent-split')
+          .attr('clip-path', `url(#${russiaClipId})`)
+          .attr('aria-hidden', 'true');
+
+        russiaSplitLayer
+          .append('path')
+          .attr('class', 'russia-continent-fill russia-europe-fill')
+          .attr('d', `M${northPoint[0]},-100${boundarySegments}L${southPoint[0]},${height + 100}L-100,${height + 100}L-100,-100Z`);
+        russiaSplitLayer
+          .append('path')
+          .attr('class', 'russia-continent-fill russia-asia-fill')
+          .attr('d', `M${northPoint[0]},-100${boundarySegments}L${southPoint[0]},${height + 100}L${width + 100},${height + 100}L${width + 100},-100Z`);
+        russiaSplitLayer
+          .append('path')
+          .datum({ type: 'LineString', coordinates: russiaBoundaryCoordinates })
+          .attr('class', 'russia-continent-boundary')
+          .attr('d', path);
+      }
 
       let activeHighlightedFlagCode = '';
       let finderHighlightedFlagCode = '';
@@ -4986,7 +5039,7 @@ class VexillaApp {
 
         preview.flagImg.alt = `${flag.name} flag`;
         preview.title.textContent = flag.name;
-        preview.continent.textContent = flag.continent;
+        preview.continent.textContent = this.getContinentLabel(flag);
         preview.capital.textContent = `Capital: ${flag.capital}`;
         preview.difficulty.textContent = `Level ${flag.difficulty}`;
         preview.fact.textContent = flag.fact;
@@ -4998,7 +5051,7 @@ class VexillaApp {
           const [locatorX, locatorY] = locatorPoint;
           const locatorViewBox = getLocatorViewBox(flag, locatorX, locatorY);
           preview.locator.hidden = false;
-          preview.locatorSvg.setAttribute('aria-label', `Approximate location of ${flag.name} in ${flag.continent}`);
+          preview.locatorSvg.setAttribute('aria-label', `Location of ${flag.name} in ${this.getContinentLabel(flag)}`);
           preview.locatorBaseViewBox = locatorViewBox;
           preview.locatorViewCenter = { x: locatorX, y: locatorY };
           preview.locatorDrag = null;
@@ -5023,7 +5076,7 @@ class VexillaApp {
       };
 
       const getNavigatorSearchText = (flag) =>
-        `${flag.name} ${flag.capital} ${flag.continent} ${flag.colors.join(' ')} ${flag.features.join(' ')} ${this.getFlagLearningDetails(flag)
+        `${flag.name} ${flag.capital} ${this.getContinentLabel(flag)} ${flag.colors.join(' ')} ${flag.features.join(' ')} ${this.getFlagLearningDetails(flag)
           .map((detail) => `${detail.label} ${detail.value}`)
           .join(' ')}`.toLowerCase();
 
@@ -5099,7 +5152,8 @@ class VexillaApp {
             name.textContent = flag.name;
 
             const meta = document.createElement('span');
-            meta.textContent = markerByCode.has(flag.code) ? `${flag.continent} • Click to locate` : `${flag.continent} • Location needed`;
+            const continentLabel = this.getContinentLabel(flag);
+            meta.textContent = markerByCode.has(flag.code) ? `${continentLabel} • Click to locate` : `${continentLabel} • Location needed`;
 
             copy.append(name, meta);
             item.append(thumb, copy);
@@ -5202,7 +5256,7 @@ class VexillaApp {
             popoverFlag.src = flagSrc;
             popoverTitle.textContent = flag.name;
             popoverMeta.textContent = '';
-            [flag.continent, `Capital: ${flag.capital}`, `Level ${flag.difficulty}`].forEach((label) => {
+            [this.getContinentLabel(flag), `Capital: ${flag.capital}`, `Level ${flag.difficulty}`].forEach((label) => {
               const pill = document.createElement('span');
               pill.textContent = label;
               popoverMeta.appendChild(pill);

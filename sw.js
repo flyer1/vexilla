@@ -1,10 +1,10 @@
-const CACHE_VERSION = 'vexilla-offline-v66';
+const CACHE_VERSION = 'vexilla-offline-v67';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=66',
-  './data.js?v=66',
-  './app.js?v=66',
+  './styles.css?v=67',
+  './data.js?v=67',
+  './app.js?v=67',
   './favicon.ico',
   './manifest.json',
 ];

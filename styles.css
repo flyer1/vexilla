@@ -3520,6 +3520,45 @@ h4 {
   --map-continent-fill: rgba(244, 114, 182, 0.065);
 }
 
+.map-country.transcontinental-russia {
+  fill: transparent;
+}
+
+.russia-continent-split {
+  pointer-events: none;
+}
+
+.russia-continent-fill {
+  transition: opacity 0.12s ease;
+}
+
+.russia-europe-fill {
+  fill: rgba(167, 139, 250, 0.075);
+}
+
+.russia-asia-fill {
+  fill: rgba(251, 191, 36, 0.065);
+}
+
+.russia-continent-boundary {
+  fill: none;
+  stroke: rgba(226, 232, 240, 0.58);
+  stroke-width: 1.1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-country.transcontinental-russia:hover ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-hovered ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-route-target ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-journey-option ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-journey-current ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-journey-backtrack ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-journey-target ~ .russia-continent-split .russia-continent-fill,
+.map-country.transcontinental-russia.is-journey-guided ~ .russia-continent-split .russia-continent-fill {
+  opacity: 0;
+}
+
 .map-country:hover,
 .map-country.is-hovered {
   fill: rgba(0, 242, 254, 0.18);
