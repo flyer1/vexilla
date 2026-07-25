@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=53', './data.js?v=53', './app.js?v=53', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=60', './data.js?v=60', './app.js?v=60', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -2726,7 +2726,7 @@ class VexillaApp {
     this.pendingMapFocusCode = '';
     if (flag) {
       this.mapRouteFlagCode = flag.code;
-      this.focusWorldMapOnFlag(flag);
+      this.focusWorldMapOnFlag(flag, { persistentHighlight: true });
       this.updateUrlFromState({ replace: true });
     }
   }
@@ -4355,6 +4355,7 @@ class VexillaApp {
       d3svg.append('rect').attr('class', 'map-ocean').attr('width', width).attr('height', height);
 
       const countryLayer = d3svg.append('g').attr('class', 'country-boundaries');
+      let clearPersistentMapTargetForFlag = () => false;
 
       countryLayer
         .selectAll('path')
@@ -4365,6 +4366,10 @@ class VexillaApp {
         .attr('d', path)
         .on('mouseenter', (event, d) => highlightCountry(d))
         .on('mouseleave', () => clearCountryHighlight())
+        .on('click.route-target', (event, d) => {
+          if (d3svg.node().classList.contains('is-dragging')) return;
+          clearPersistentMapTargetForFlag(getFlagForCountry(d)?.code);
+        })
         .append('title')
         .text((d) => d.properties?.name || 'Country');
 
@@ -5151,6 +5156,7 @@ class VexillaApp {
         .on('click', (event, d) => {
           if (this.mapMode !== 'explore') return;
           if (d3svg.node().classList.contains('is-dragging')) return;
+          clearPersistentMapTargetForFlag(d.flag.code);
           this.openFlagModal(d.flag);
         })
         .on('mouseenter', showPopoverForMarker)
@@ -5172,9 +5178,28 @@ class VexillaApp {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             if (this.mapMode === 'journey') handlePassportDestination(d.flag);
-            else if (this.mapMode === 'explore') this.openFlagModal(d.flag);
+            else if (this.mapMode === 'explore') {
+              clearPersistentMapTargetForFlag(d.flag.code);
+              this.openFlagModal(d.flag);
+            }
           }
         });
+
+      const setPersistentMapTarget = (flagCode = '') => {
+        countryLayer.selectAll('.map-country').classed('is-route-target', (country) => getFlagForCountry(country)?.code === flagCode);
+        markerGroups
+          .classed('is-route-target', (marker) => marker.flag.code === flagCode)
+          .attr('aria-current', (marker) => (marker.flag.code === flagCode ? 'location' : null));
+      };
+
+      clearPersistentMapTargetForFlag = (flagCode = '') => {
+        if (!flagCode || flagCode !== this.mapRouteFlagCode) return false;
+        setPersistentMapTarget();
+        clearCountryHighlight();
+        this.mapRouteFlagCode = '';
+        this.updateUrlFromState({ replace: true });
+        return true;
+      };
 
       markerGroups
         .append('rect')
@@ -5289,6 +5314,8 @@ class VexillaApp {
         }
 
         hidePopover();
+        setPersistentMapTarget(options.persistentHighlight ? flag.code : '');
+        if (!options.persistentHighlight) this.mapRouteFlagCode = '';
         clearCountryHighlight();
         highlightCountryFromFinder(flag.code);
         const currentTransform = window.d3.zoomTransform(svg);
@@ -5314,9 +5341,6 @@ class VexillaApp {
       const journeyScore = document.getElementById('passport-score');
       const journeyCorrectCount = document.getElementById('passport-correct-count');
       const journeyBestScore = document.getElementById('passport-best-score');
-      const journeyStreakStat = document.getElementById('passport-streak-stat');
-      const journeyStreakCount = document.getElementById('passport-streak-count');
-      const journeyStreakBonus = document.getElementById('passport-streak-bonus');
       const journeyRemainingButton = document.getElementById('passport-remaining-button');
       const journeyRemainingCount = document.getElementById('passport-remaining-count');
       const journeyRemainingPanel = document.getElementById('passport-remaining-panel');
@@ -5334,7 +5358,34 @@ class VexillaApp {
       let pendingJourneyWasCorrect = false;
       let journeyAdvanceTimeout = null;
       let journeyGuideTargetCode = '';
-      let journeyFeedbackMessage = '';
+      let journeyFeedback = null;
+
+      const renderJourneyScoreFeedback = (feedback) => {
+        if (!journeyRouteHint || !feedback) return;
+        journeyRouteHint.textContent = '';
+        journeyRouteHint.setAttribute('aria-label', feedback.announcement);
+
+        [
+          { type: 'score', value: feedback.score, label: 'Score', detail: feedback.scoreDetail },
+          { type: 'xp', value: feedback.xp, label: 'XP', detail: feedback.xpDetail },
+          { type: 'streak', value: feedback.streak, label: 'Streak', detail: feedback.streakDetail },
+        ].forEach((item) => {
+          const metric = document.createElement('span');
+          metric.className = `passport-feedback-metric is-${item.type}`;
+
+          const value = document.createElement('strong');
+          value.textContent = item.value;
+
+          const label = document.createElement('span');
+          label.textContent = item.label;
+
+          const detail = document.createElement('small');
+          detail.textContent = item.detail;
+
+          metric.append(value, label, detail);
+          journeyRouteHint.appendChild(metric);
+        });
+      };
 
       const getJourneyState = () => {
         this.state.passportJourney = this.sanitizePassportJourney(this.state.passportJourney);
@@ -5506,10 +5557,11 @@ class VexillaApp {
           .filter(Boolean);
         if (journeyRouteTrail) journeyRouteTrail.textContent = routeNames.join(' -> ');
         if (journeyRouteHint) {
-          journeyRouteHint.classList.toggle('is-score-feedback', Boolean(journeyFeedbackMessage));
-          if (journeyFeedbackMessage) {
-            journeyRouteHint.textContent = journeyFeedbackMessage;
+          journeyRouteHint.classList.toggle('is-score-feedback', Boolean(journeyFeedback));
+          if (journeyFeedback) {
+            renderJourneyScoreFeedback(journeyFeedback);
           } else {
+            journeyRouteHint.removeAttribute('aria-label');
             const newDestinationCount = [...neighborCodes].filter((code) => !visitedCodes.has(code)).length;
             const backtrackCount = neighborCodes.size - newDestinationCount;
             if (guideNextCode) {
@@ -5533,8 +5585,6 @@ class VexillaApp {
         if (!remainingTotal) closeJourneyRemaining();
         if (journeyCorrectCount) journeyCorrectCount.textContent = `${journey.correct} / ${journey.attempts}`;
         if (journeyBestScore) journeyBestScore.textContent = passportStats.bestJourneyPoints.toLocaleString();
-        if (journeyStreakCount) journeyStreakCount.textContent = String(journey.answerStreak);
-        if (journeyStreakBonus) journeyStreakBonus.textContent = `next +${this.getPassportStreakBonus(journey.answerStreak + 1)} bonus`;
       };
       const travelPassportToFlag = (destination) => {
         const journey = getJourneyState();
@@ -5595,7 +5645,15 @@ class VexillaApp {
           const streakCopy = journey.answerStreak > 1 ? ` • ${journey.answerStreak}-answer streak` : '';
           const bonusCopy = streakBonus ? `100 base + ${streakBonus} streak bonus` : '100 base';
           const xpCopy = xpCheckpoint ? `${xpAwardedNow} XP (${xpBreakdown.join(' + ')})` : `${xpAwardedNow} XP`;
-          journeyFeedbackMessage = `+${pointsEarned} score (${bonusCopy}) • +${xpCopy}${streakCopy}.`;
+          journeyFeedback = {
+            score: `+${pointsEarned}`,
+            scoreDetail: streakBonus ? `100 base + ${streakBonus} bonus` : '100 base',
+            xp: `+${xpAwardedNow}`,
+            xpDetail: xpBreakdown.length ? xpBreakdown.join(' + ') : 'No XP awarded',
+            streak: String(journey.answerStreak),
+            streakDetail: journey.answerStreak === 1 ? 'correct answer' : 'correct in a row',
+            announcement: `+${pointsEarned} score (${bonusCopy}). +${xpCopy}${streakCopy}.`,
+          };
           passportStats.totalCorrect += 1;
           passportStats.bestJourneyPoints = Math.max(passportStats.bestJourneyPoints, journey.score);
           button.classList.add('correct');
@@ -5606,10 +5664,6 @@ class VexillaApp {
             journeyQuestionRoute.classList.remove('is-streak-reset');
             journeyQuestionRoute.textContent = 'Passport stamped. Travelling to the next stop...';
           }
-          journeyStreakStat?.classList.remove('is-resetting', 'is-growing');
-          if (journeyStreakStat) void journeyStreakStat.offsetWidth;
-          journeyStreakStat?.classList.add('is-growing');
-          window.setTimeout(() => journeyStreakStat?.classList.remove('is-growing'), 650);
           journeyAdvanceTimeout = window.setTimeout(movePassportToDestination, 650);
         } else {
           const brokenStreak = journey.answerStreak;
@@ -5629,12 +5683,6 @@ class VexillaApp {
             journeyQuestionRoute.textContent = brokenStreak
               ? `Streak reset: ${brokenStreak} → 0. No score this stop.${checkpointCopy}`
               : `No score this stop. Build a streak with your next correct answer.${checkpointCopy}`;
-          }
-          if (brokenStreak > 0) {
-            journeyStreakStat?.classList.remove('is-growing', 'is-resetting');
-            if (journeyStreakStat) void journeyStreakStat.offsetWidth;
-            journeyStreakStat?.classList.add('is-resetting');
-            window.setTimeout(() => journeyStreakStat?.classList.remove('is-resetting'), 850);
           }
           if (journeyLearningTitle) journeyLearningTitle.textContent = destinationFlag.name;
           if (journeyLearningCopy) journeyLearningCopy.textContent = this.getMemoryHook(destinationFlag) || destinationFlag.fact;
@@ -5662,7 +5710,7 @@ class VexillaApp {
         const currentFlag = this.flags.find((flag) => flag.code === journey.currentCode);
         if (!currentFlag || !journeyQuestion || !journeyAnswerGrid) return;
         if (pendingJourneyDestination?.code === destinationFlag.code && !journeyQuestion.hidden) return;
-        journeyFeedbackMessage = '';
+        journeyFeedback = null;
         journeyRouteHint?.classList.remove('is-score-feedback');
         if (journeyRouteHint) journeyRouteHint.textContent = `Answer the flag question to travel to ${destinationFlag.name}.`;
         cancelJourneyQuestion();
@@ -5698,13 +5746,13 @@ class VexillaApp {
         const journey = getJourneyState();
         if (!journey.currentCode || destinationFlag.code === journey.currentCode) return false;
         if (!journeyRoutes.get(journey.currentCode)?.has(destinationFlag.code)) {
-          journeyFeedbackMessage = '';
+          journeyFeedback = null;
           journeyRouteHint?.classList.remove('is-score-feedback');
           if (journeyRouteHint) journeyRouteHint.textContent = `${destinationFlag.name} is not connected to this stop. Choose a highlighted destination.`;
           return false;
         }
         if (journey.visitedCodes.includes(destinationFlag.code)) {
-          journeyFeedbackMessage = '';
+          journeyFeedback = null;
           travelPassportToFlag(destinationFlag);
           return true;
         }
@@ -5714,7 +5762,7 @@ class VexillaApp {
       const startPassportJourney = (forceRestart = false) => {
         const journey = getJourneyState();
         if (forceRestart || !journey.currentCode || !markerByCode.has(journey.currentCode)) {
-          journeyFeedbackMessage = '';
+          journeyFeedback = null;
           const candidates = this.flags.filter((flag) => markerByCode.has(flag.code) && getJourneyNeighborCodes(flag.code).length >= minimumJourneyConnections);
           const startFlag = candidates[Math.floor(Math.random() * candidates.length)];
           if (!startFlag) return;

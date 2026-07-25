@@ -9,7 +9,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="styles.css?v=53" />
+    <link rel="stylesheet" href="styles.css?v=60" />
   </head>
   <body>
     <div class="app-container">
@@ -139,32 +139,6 @@
 
           <!-- Statistics Grid -->
           <div class="stats-grid">
-            <div class="stat-card glass-panel">
-              <div class="stat-icon">
-                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                  <line x1="4" y1="22" x2="4" y2="15" />
-                </svg>
-              </div>
-              <div class="stat-info">
-                <span class="stat-value" id="stats-learned">0 / 197</span>
-                <span class="stat-label">Flags Mastered</span>
-              </div>
-            </div>
-
-            <div class="stat-card glass-panel">
-              <div class="stat-icon" style="color: var(--accent-purple)">
-                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-                  <circle cx="12" cy="8" r="7" />
-                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                </svg>
-              </div>
-              <div class="stat-info">
-                <span class="stat-value" id="stats-highscore">0%</span>
-                <span class="stat-label">Best Quiz Score</span>
-              </div>
-            </div>
-
             <div class="stat-card glass-panel xp-level-card">
               <div class="stat-icon" style="color: var(--accent-cyan)">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
@@ -190,6 +164,32 @@
                   <div id="dashboard-xp-level-bar"></div>
                 </div>
                 <small id="dashboard-xp-level-progress">0 / 250 XP</small>
+              </div>
+            </div>
+
+            <div class="stat-card glass-panel">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stats-learned">0 / 197</span>
+                <span class="stat-label">Flags Mastered</span>
+              </div>
+            </div>
+
+            <div class="stat-card glass-panel">
+              <div class="stat-icon" style="color: var(--accent-purple)">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="12" cy="8" r="7" />
+                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stats-highscore">0%</span>
+                <span class="stat-label">Best Quiz Score</span>
               </div>
             </div>
 
@@ -926,17 +926,13 @@
                 </div>
                 <div class="passport-route-copy">
                   <span id="passport-route-trail"></span>
-                  <small id="passport-route-hint" aria-live="polite">Choose a highlighted destination on the map.</small>
+                  <div class="passport-route-hint" id="passport-route-hint" role="status" aria-live="polite">Choose a highlighted destination on the map.</div>
                 </div>
                 <div class="passport-journey-stats" aria-label="Journey statistics">
                   <span class="passport-score-stat" title="Points earned in this journey">
                     <strong id="passport-score">0</strong> score
                   </span>
                   <span class="passport-best-stat" title="Most points earned in one journey"><strong id="passport-best-score">0</strong> best</span>
-                  <span class="passport-streak-stat" id="passport-streak-stat" title="Bonus available on your next correct answer" aria-live="polite">
-                    <strong id="passport-streak-count">0</strong> streak
-                    <small id="passport-streak-bonus">next +0 bonus</small>
-                  </span>
                   <span title="Correct answers out of flag questions answered"><strong id="passport-correct-count">0 / 0</strong> correct</span>
                   <button class="passport-remaining-button" id="passport-remaining-button" type="button" aria-expanded="false" aria-controls="passport-remaining-panel" hidden>
                     <strong id="passport-remaining-count">0</strong> left
@@ -1365,7 +1361,7 @@
     <!-- Load Data and App Controller -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-    <script src="data.js?v=53"></script>
-    <script src="app.js?v=53"></script>
+    <script src="data.js?v=60"></script>
+    <script src="app.js?v=60"></script>
   </body>
 </html>
