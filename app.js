@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=64', './data.js?v=64', './app.js?v=64', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=65', './data.js?v=65', './app.js?v=65', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -1182,6 +1182,24 @@ class VexillaApp {
     this.saveState();
   }
 
+  getContinentFamily(continent) {
+    return continent === 'North America' || continent === 'South America' ? 'Americas' : continent;
+  }
+
+  matchesContinentSelection(flagContinent, selectedContinents = ['all']) {
+    return selectedContinents.includes('all') || selectedContinents.includes(flagContinent) || selectedContinents.includes(this.getContinentFamily(flagContinent));
+  }
+
+  getFlagsForContinent(continent) {
+    return this.flags.filter((flag) => this.matchesContinentSelection(flag.continent, [continent]));
+  }
+
+  getContinentSortRank(continent) {
+    const order = ['Africa', 'North America', 'South America', 'Asia', 'Europe', 'Oceania'];
+    const index = order.indexOf(continent);
+    return index === -1 ? order.length : index;
+  }
+
   // --- DASHBOARD UPDATER ---
   updateDashboardStats() {
     const totalFlagsCount = this.flags.length;
@@ -1244,7 +1262,7 @@ class VexillaApp {
       const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
       continentProgress.innerHTML = '';
       continentOrder.forEach((continent) => {
-        const flags = this.flags.filter((flag) => flag.continent === continent);
+        const flags = this.getFlagsForContinent(continent);
         const mastered = flags.filter((flag) => this.state.learnedFlags.includes(flag.code)).length;
         const percent = flags.length ? Math.round((mastered / flags.length) * 100) : 0;
         const row = document.createElement('button');
@@ -1569,11 +1587,16 @@ class VexillaApp {
   getBestLearningContinent() {
     const continents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
     const preferred = this.state.preferredContinent;
-    const remainingInPreferred = this.flags.some((flag) => flag.continent === preferred && !this.state.learnedFlags.includes(flag.code));
+    const remainingInPreferred = this.flags.some(
+      (flag) => this.matchesContinentSelection(flag.continent, [preferred]) && !this.state.learnedFlags.includes(flag.code),
+    );
     if (remainingInPreferred) return preferred;
     return (
       continents
-        .map((continent) => ({ continent, mastered: this.flags.filter((flag) => flag.continent === continent && this.state.learnedFlags.includes(flag.code)).length }))
+        .map((continent) => ({
+          continent,
+          mastered: this.getFlagsForContinent(continent).filter((flag) => this.state.learnedFlags.includes(flag.code)).length,
+        }))
         .sort((a, b) => a.mastered - b.mastered)[0]?.continent || 'Africa'
     );
   }
@@ -1703,7 +1726,7 @@ class VexillaApp {
   }
 
   filterBySelectedContinents(flags, continents) {
-    return continents.includes('all') ? flags : flags.filter((flag) => continents.includes(flag.continent));
+    return continents.includes('all') ? flags : flags.filter((flag) => this.matchesContinentSelection(flag.continent, continents));
   }
 
   selectFlashcardContinent(element, event) {
@@ -1805,7 +1828,9 @@ class VexillaApp {
     const quizContinents = customContinents || this.activeQuizContinents;
     let filteredFlags = [...this.flags];
     if (customLevel) filteredFlags = filteredFlags.filter((flag) => flag.difficulty === customLevel);
-    if (!quizContinents.includes('all')) filteredFlags = filteredFlags.filter((flag) => quizContinents.includes(flag.continent));
+    if (!quizContinents.includes('all')) {
+      filteredFlags = filteredFlags.filter((flag) => this.matchesContinentSelection(flag.continent, quizContinents));
+    }
     if (this.quizPool === 'review') {
       const reviewCodes = new Set([...this.state.needReviewFlags, ...this.getDueFlags().map((flag) => flag.code)]);
       filteredFlags = filteredFlags.filter((flag) => reviewCodes.has(flag.code));
@@ -1940,7 +1965,7 @@ class VexillaApp {
   getContinentInsights() {
     const continents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
     return continents.map((continent) => {
-      const stats = this.getFlagStats().filter((item) => item.flag.continent === continent);
+      const stats = this.getFlagStats().filter((item) => this.matchesContinentSelection(item.flag.continent, [continent]));
       const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
       const correct = stats.reduce((sum, item) => sum + item.correct, 0);
       const learned = stats.filter((item) => this.state.learnedFlags.includes(item.flag.code)).length;
@@ -2657,25 +2682,39 @@ class VexillaApp {
     grid.innerHTML = '';
     grid.classList.toggle('list-view', this.atlasViewMode === 'list');
 
-    const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
     const sortedFlags = [...this.flags].sort((a, b) => {
-      const continentDiff = continentOrder.indexOf(a.continent) - continentOrder.indexOf(b.continent);
+      const continentDiff = this.getContinentSortRank(a.continent) - this.getContinentSortRank(b.continent);
       if (continentDiff !== 0) return continentDiff;
       return a.name.localeCompare(b.name);
     });
 
+    let activeFamily = '';
     let activeContinent = '';
     sortedFlags.forEach((flag) => {
-      if (flag.continent !== activeContinent) {
-        activeContinent = flag.continent;
+      const continentFamily = this.getContinentFamily(flag.continent);
+      if (continentFamily !== activeFamily) {
+        activeFamily = continentFamily;
+        activeContinent = '';
         const header = document.createElement('div');
         header.className = 'encyclopedia-continent-header';
-        header.setAttribute('data-continent', activeContinent);
+        header.setAttribute('data-continent', activeFamily);
         header.innerHTML = `
+          <span class="encyclopedia-continent-name">${activeFamily}</span>
+          <span class="encyclopedia-continent-count" data-count-for="${activeFamily}">0 flags</span>
+        `;
+        grid.appendChild(header);
+      }
+
+      if (continentFamily === 'Americas' && flag.continent !== activeContinent) {
+        activeContinent = flag.continent;
+        const subheader = document.createElement('div');
+        subheader.className = 'encyclopedia-continent-subheader';
+        subheader.setAttribute('data-subcontinent', activeContinent);
+        subheader.innerHTML = `
           <span class="encyclopedia-continent-name">${activeContinent}</span>
           <span class="encyclopedia-continent-count" data-count-for="${activeContinent}">0 flags</span>
         `;
-        grid.appendChild(header);
+        grid.appendChild(subheader);
       }
 
       const card = document.createElement('div');
@@ -2683,6 +2722,7 @@ class VexillaApp {
       card.setAttribute('data-country', flag.name);
       card.setAttribute('data-code', flag.code);
       card.setAttribute('data-continent', flag.continent);
+      card.setAttribute('data-continent-family', continentFamily);
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
       card.classList.add('keyboard-action');
@@ -2786,8 +2826,11 @@ class VexillaApp {
     const searchVal = document.getElementById('atlas-search-input').value.toLowerCase();
     const cards = document.querySelectorAll('.encyclopedia-card');
     const headers = document.querySelectorAll('.encyclopedia-continent-header');
+    const subheaders = document.querySelectorAll('.encyclopedia-continent-subheader');
     const visibleContinents = new Set();
+    const visibleContinentFamilies = new Set();
     const continentCounts = new Map();
+    const continentFamilyCounts = new Map();
     let resultsCount = 0;
 
     cards.forEach((card) => {
@@ -2804,7 +2847,7 @@ class VexillaApp {
 
       // Match Tag Filters (Multi-select)
       // Continent Match (OR logic: match any of the selected continents)
-      const matchesContinent = this.activeFilters.continent.includes('all') || this.activeFilters.continent.includes(flagObj.continent);
+      const matchesContinent = this.matchesContinentSelection(flagObj.continent, this.activeFilters.continent);
 
       // Color Match (AND logic: flag must contain ALL selected colors)
       const matchesColor = this.activeFilters.color.includes('all') || this.activeFilters.color.every((c) => flagObj.colors.includes(c));
@@ -2815,7 +2858,10 @@ class VexillaApp {
       if (matchesSearch && matchesContinent && matchesColor && matchesFeature) {
         card.style.display = 'flex';
         visibleContinents.add(flagObj.continent);
+        const continentFamily = this.getContinentFamily(flagObj.continent);
+        visibleContinentFamilies.add(continentFamily);
         continentCounts.set(flagObj.continent, (continentCounts.get(flagObj.continent) || 0) + 1);
+        continentFamilyCounts.set(continentFamily, (continentFamilyCounts.get(continentFamily) || 0) + 1);
         resultsCount++;
       } else {
         card.style.display = 'none';
@@ -2824,6 +2870,14 @@ class VexillaApp {
 
     headers.forEach((header) => {
       const continent = header.getAttribute('data-continent');
+      const count = continentFamilyCounts.get(continent) || 0;
+      const countEl = header.querySelector('.encyclopedia-continent-count');
+      header.style.display = visibleContinentFamilies.has(continent) ? 'flex' : 'none';
+      if (countEl) countEl.textContent = `${count} flag${count === 1 ? '' : 's'}`;
+    });
+
+    subheaders.forEach((header) => {
+      const continent = header.getAttribute('data-subcontinent');
       const count = continentCounts.get(continent) || 0;
       const countEl = header.querySelector('.encyclopedia-continent-count');
       header.style.display = visibleContinents.has(continent) ? 'flex' : 'none';
@@ -4092,7 +4146,8 @@ class VexillaApp {
 
         const continentBounds = {
           Africa: [-20, 38, 55, -36],
-          Americas: [-170, 72, -30, -56],
+          'North America': [-170, 83, -50, 5],
+          'South America': [-82, 13, -34, -56],
           Asia: [25, 82, 150, -12],
           Europe: [-25, 72, 45, 34],
         };
@@ -4501,7 +4556,12 @@ class VexillaApp {
         if (routesNeeded <= 0) return;
         const origin = markerLngLat.get(marker.flag.code);
         const nearby = markers
-          .filter((candidate) => candidate.flag.code !== marker.flag.code && candidate.flag.continent === marker.flag.continent && !existingRoutes?.has(candidate.flag.code))
+          .filter(
+            (candidate) =>
+              candidate.flag.code !== marker.flag.code &&
+              this.getContinentFamily(candidate.flag.continent) === this.getContinentFamily(marker.flag.continent) &&
+              !existingRoutes?.has(candidate.flag.code),
+          )
           .map((candidate) => ({ candidate, distance: geographicDistance(origin, markerLngLat.get(candidate.flag.code)) }))
           .sort((a, b) => a.distance - b.distance)
           .slice(0, routesNeeded);
@@ -4651,14 +4711,9 @@ class VexillaApp {
           if (d3svg.node().classList.contains('is-dragging')) return;
           handleMapChallengeClick(country);
         });
-      const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
       const sortFlagsForNavigator = (flags) =>
         [...flags].sort((a, b) => {
-          const continentA = continentOrder.indexOf(a.continent);
-          const continentB = continentOrder.indexOf(b.continent);
-          const orderA = continentA === -1 ? continentOrder.length : continentA;
-          const orderB = continentB === -1 ? continentOrder.length : continentB;
-          return orderA - orderB || a.name.localeCompare(b.name);
+          return this.getContinentSortRank(a.continent) - this.getContinentSortRank(b.continent) || a.name.localeCompare(b.name);
         });
       const navigatorFlags = sortFlagsForNavigator(this.flags);
       let focusMainMapOnFlag = () => {};
@@ -4695,7 +4750,8 @@ class VexillaApp {
 
         const continentBounds = {
           Africa: [-20, 38, 55, -36],
-          Americas: [-170, 72, -30, -56],
+          'North America': [-170, 83, -50, 5],
+          'South America': [-82, 13, -34, -56],
           Asia: [25, 82, 150, -12],
           Europe: [-25, 72, 45, 34],
         };
@@ -4996,12 +5052,23 @@ class VexillaApp {
             return;
           }
 
+          let activeFamily = '';
           let activeContinent = '';
           visibleFlags.forEach((flag) => {
-            if (flag.continent !== activeContinent) {
+            const continentFamily = this.getContinentFamily(flag.continent);
+            if (continentFamily !== activeFamily) {
+              activeFamily = continentFamily;
+              activeContinent = '';
+              const familyHeader = document.createElement('div');
+              familyHeader.className = 'map-unplaced-continent-header';
+              familyHeader.textContent = activeFamily;
+              unplacedList.appendChild(familyHeader);
+            }
+
+            if (continentFamily === 'Americas' && flag.continent !== activeContinent) {
               activeContinent = flag.continent;
               const continentHeader = document.createElement('div');
-              continentHeader.className = 'map-unplaced-continent-header';
+              continentHeader.className = 'map-unplaced-continent-subheader';
               continentHeader.textContent = activeContinent;
               unplacedList.appendChild(continentHeader);
             }
@@ -5453,10 +5520,9 @@ class VexillaApp {
       };
       const getRemainingJourneyFlags = () => {
         const visitedCodes = new Set(getJourneyState().visitedCodes);
-        const continentOrder = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
         return this.flags
           .filter((flag) => markerByCode.has(flag.code) && !visitedCodes.has(flag.code))
-          .sort((a, b) => continentOrder.indexOf(a.continent) - continentOrder.indexOf(b.continent) || a.name.localeCompare(b.name));
+          .sort((a, b) => this.getContinentSortRank(a.continent) - this.getContinentSortRank(b.continent) || a.name.localeCompare(b.name));
       };
       const renderJourneyRemainingList = () => {
         if (!journeyRemainingList) return;
@@ -5465,10 +5531,14 @@ class VexillaApp {
         journeyRemainingList.textContent = '';
         const continentGroups = new Map();
         remainingFlags.forEach((flag) => {
-          if (!continentGroups.has(flag.continent)) continentGroups.set(flag.continent, []);
-          continentGroups.get(flag.continent).push(flag);
+          const family = this.getContinentFamily(flag.continent);
+          if (!continentGroups.has(family)) continentGroups.set(family, new Map());
+          const familyGroups = continentGroups.get(family);
+          if (!familyGroups.has(flag.continent)) familyGroups.set(flag.continent, []);
+          familyGroups.get(flag.continent).push(flag);
         });
-        continentGroups.forEach((flags, continentName) => {
+        continentGroups.forEach((familyGroups, continentName) => {
+          const flags = [...familyGroups.values()].flat();
           const groupHeading = document.createElement('div');
           groupHeading.className = 'passport-remaining-continent';
           const headingName = document.createElement('strong');
@@ -5478,26 +5548,35 @@ class VexillaApp {
           groupHeading.append(headingName, headingCount);
           journeyRemainingList.appendChild(groupHeading);
 
-          flags.forEach((flag) => {
-            const pathCodes = getJourneyPath(journey.currentCode, flag.code);
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'passport-remaining-country';
-            button.setAttribute('aria-label', `Guide journey to ${flag.name}`);
-            const name = document.createElement('strong');
-            const stops = document.createElement('small');
-            name.textContent = flag.name;
-            stops.textContent = pathCodes.length > 1 ? `${pathCodes.length - 1} stops` : 'Route unavailable';
-            button.append(name, stops);
-            button.addEventListener('click', () => {
-              journeyGuideTargetCode = flag.code;
-              closeJourneyRemaining();
-              renderJourneyMapState();
-              const nextCode = getJourneyPath(getJourneyState().currentCode, flag.code)[1];
-              const nextFlag = this.flags.find((item) => item.code === nextCode);
-              if (nextFlag) focusMainMapOnFlag(nextFlag, { preserveScale: true });
+          familyGroups.forEach((regionFlags, regionName) => {
+            if (continentName === 'Americas') {
+              const subheading = document.createElement('div');
+              subheading.className = 'passport-remaining-subcontinent';
+              subheading.textContent = regionName;
+              journeyRemainingList.appendChild(subheading);
+            }
+
+            regionFlags.forEach((flag) => {
+              const pathCodes = getJourneyPath(journey.currentCode, flag.code);
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'passport-remaining-country';
+              button.setAttribute('aria-label', `Guide journey to ${flag.name}`);
+              const name = document.createElement('strong');
+              const stops = document.createElement('small');
+              name.textContent = flag.name;
+              stops.textContent = pathCodes.length > 1 ? `${pathCodes.length - 1} stops` : 'Route unavailable';
+              button.append(name, stops);
+              button.addEventListener('click', () => {
+                journeyGuideTargetCode = flag.code;
+                closeJourneyRemaining();
+                renderJourneyMapState();
+                const nextCode = getJourneyPath(getJourneyState().currentCode, flag.code)[1];
+                const nextFlag = this.flags.find((item) => item.code === nextCode);
+                if (nextFlag) focusMainMapOnFlag(nextFlag, { preserveScale: true });
+              });
+              journeyRemainingList.appendChild(button);
             });
-            journeyRemainingList.appendChild(button);
           });
         });
       };
@@ -5984,8 +6063,8 @@ class VexillaApp {
     const passportContinentCount = new Set(passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean)).size;
     const countDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty && learnedSet.has(flag.code)).length;
     const totalDifficulty = (difficulty) => this.flags.filter((flag) => flag.difficulty === difficulty).length;
-    const countContinent = (continent) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length;
-    const totalContinent = (continent) => this.flags.filter((flag) => flag.continent === continent).length;
+    const countContinent = (continent) => this.getFlagsForContinent(continent).filter((flag) => learnedSet.has(flag.code)).length;
+    const totalContinent = (continent) => this.getFlagsForContinent(continent).length;
     const binary = () => ({ current: achievement.check() ? 1 : 0, target: 1 });
     const progressById = {
       first_steps: [this.state.learnedFlags.length, 5],
@@ -6058,8 +6137,8 @@ class VexillaApp {
     const masteredAtLeast = (count) => masteredCount >= count;
     const masteredAll = (flags) => flags.length > 0 && flags.every((flag) => learnedSet.has(flag.code));
     const masteredDifficulty = (difficulty) => masteredAll(this.flags.filter((flag) => flag.difficulty === difficulty));
-    const masteredContinent = (continent) => masteredAll(this.flags.filter((flag) => flag.continent === continent));
-    const masteredContinentCount = (continent, count) => this.flags.filter((flag) => flag.continent === continent && learnedSet.has(flag.code)).length >= count;
+    const masteredContinent = (continent) => masteredAll(this.getFlagsForContinent(continent));
+    const masteredContinentCount = (continent, count) => this.getFlagsForContinent(continent).filter((flag) => learnedSet.has(flag.code)).length >= count;
     const passportStats = this.sanitizePassportStats(this.state.passportStats);
     const passportContinentCount = new Set(passportStats.visitedCodes.map((code) => this.flags.find((flag) => flag.code === code)?.continent).filter(Boolean)).size;
 

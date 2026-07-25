@@ -2779,6 +2779,16 @@ h4 {
   font-size: 0.62rem;
 }
 
+.passport-remaining-subcontinent {
+  grid-column: 1 / -1;
+  margin: 0.35rem 0 0.05rem 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .passport-remaining-country {
   min-width: 0;
   min-height: 48px;
@@ -2996,6 +3006,15 @@ h4 {
   height: 1px;
   flex: 1;
   background: linear-gradient(to right, rgba(0, 242, 254, 0.35), transparent);
+}
+
+.map-unplaced-continent-subheader {
+  margin: 0.35rem 0 0.2rem 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 [data-theme='light'] .map-unplaced-continent-header {
@@ -3973,6 +3992,26 @@ h4 {
   text-transform: uppercase;
 }
 
+.encyclopedia-continent-subheader {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.15rem 0 -0.3rem 0.8rem;
+  color: var(--text-main);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.encyclopedia-continent-subheader::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.16), transparent);
+}
+
 .encyclopedia-continent-name {
   flex: 0 0 auto;
 }
@@ -3999,6 +4038,10 @@ h4 {
 
 [data-theme='light'] .encyclopedia-continent-header {
   color: #0078a8;
+}
+
+[data-theme='light'] .encyclopedia-continent-subheader::after {
+  background: linear-gradient(to right, rgba(15, 23, 42, 0.18), transparent);
 }
 
 [data-theme='light'] .atlas-result-summary,
@@ -6032,6 +6075,7 @@ input:checked + .slider:before {
   }
 
   .encyclopedia-continent-header,
+  .encyclopedia-continent-subheader,
   .achievement-group-header {
     margin: 0.1rem 0 -0.25rem;
     font-size: 0.7rem;
