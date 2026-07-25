@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=65', './data.js?v=65', './app.js?v=65', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=66', './data.js?v=66', './app.js?v=66', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -4446,8 +4446,14 @@ class VexillaApp {
         .selectAll('path')
         .data(countries)
         .join('path')
-        .attr('class', (d) => (getFlagForCountry(d) ? 'map-country has-flag-data' : 'map-country'))
+        .attr('class', (d) => {
+          const flag = getFlagForCountry(d);
+          if (!flag) return 'map-country';
+          const continentClass = flag.continent.toLowerCase().replace(/\s+/g, '-');
+          return `map-country has-flag-data continent-${continentClass}`;
+        })
         .attr('data-flag-code', (d) => getFlagForCountry(d)?.code || '')
+        .attr('data-continent', (d) => getFlagForCountry(d)?.continent || '')
         .attr('d', path)
         .on('mouseenter', (event, d) => highlightCountry(d))
         .on('mouseleave', () => clearCountryHighlight())

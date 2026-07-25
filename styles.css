@@ -3485,7 +3485,7 @@ h4 {
 }
 
 .map-country {
-  fill: rgba(255, 255, 255, 0.035);
+  fill: var(--map-continent-fill, rgba(255, 255, 255, 0.035));
   stroke: rgba(255, 255, 255, 0.22);
   stroke-width: 0.8;
   vector-effect: non-scaling-stroke;
@@ -3494,6 +3494,30 @@ h4 {
     stroke 0.12s ease,
     stroke-width 0.12s ease,
     filter 0.12s ease;
+}
+
+.map-country.continent-africa {
+  --map-continent-fill: rgba(52, 211, 153, 0.075);
+}
+
+.map-country.continent-north-america {
+  --map-continent-fill: rgba(96, 165, 250, 0.075);
+}
+
+.map-country.continent-south-america {
+  --map-continent-fill: rgba(45, 212, 191, 0.075);
+}
+
+.map-country.continent-asia {
+  --map-continent-fill: rgba(251, 191, 36, 0.065);
+}
+
+.map-country.continent-europe {
+  --map-continent-fill: rgba(167, 139, 250, 0.075);
+}
+
+.map-country.continent-oceania {
+  --map-continent-fill: rgba(244, 114, 182, 0.065);
 }
 
 .map-country:hover,
