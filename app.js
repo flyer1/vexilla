@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=60', './data.js?v=60', './app.js?v=60', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=64', './data.js?v=64', './app.js?v=64', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -1483,6 +1483,12 @@ class VexillaApp {
     const mnemonicVal = document.getElementById('card-mnemonic');
     if (mnemonicVal) mnemonicVal.textContent = activeFlag.fact;
 
+    const cardMapLink = document.getElementById('card-map-link');
+    if (cardMapLink) {
+      cardMapLink.dataset.flagCode = activeFlag.code;
+      cardMapLink.setAttribute('aria-label', `Show ${activeFlag.name} on the world map`);
+    }
+
     this.renderFlashcardLocatorMap(activeFlag);
 
     // Update progress bar
@@ -1636,6 +1642,16 @@ class VexillaApp {
     }[mode];
   }
 
+  isMultiSelectFilterEvent(event) {
+    if (!event) return false;
+    if (event.ctrlKey || event.metaKey) return true;
+
+    const isTouchClick =
+      event.detail > 0 &&
+      (event.sourceCapabilities?.firesTouchEvents || window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+    return Boolean(isTouchClick);
+  }
+
   updateContinentControls(mode) {
     const stateKey = this.getContinentStateKey(mode);
     if (!stateKey) return;
@@ -1651,7 +1667,7 @@ class VexillaApp {
     if (!stateKey) return;
 
     const value = element.getAttribute('data-continent');
-    const isMultiSelect = event && (event.ctrlKey || event.metaKey);
+    const isMultiSelect = this.isMultiSelectFilterEvent(event);
 
     if (value === 'all') {
       this[stateKey] = ['all'];
@@ -2709,15 +2725,24 @@ class VexillaApp {
     this.filterAtlas();
   }
 
-  navigateAtlasFlagToMap(flagCode, event) {
+  navigateFlagToMap(flagCode, event) {
     event?.preventDefault();
     event?.stopPropagation();
     const flag = this.flags.find((item) => item.code === flagCode);
     if (!flag) return;
+
+    if (document.getElementById('flag-detail-modal')?.classList.contains('active')) {
+      this.closeModal();
+    }
     this.pendingMapFocusCode = flagCode;
     this.mapRouteFlagCode = flagCode;
+    this.mapMode = 'explore';
     this.switchView('map');
     window.setTimeout(() => this.processPendingMapFocus(), 0);
+  }
+
+  navigateAtlasFlagToMap(flagCode, event) {
+    this.navigateFlagToMap(flagCode, event);
   }
 
   processPendingMapFocus() {
@@ -2833,7 +2858,7 @@ class VexillaApp {
   selectFilter(element, event) {
     const filterType = element.getAttribute('data-filter'); // e.g. "continent"
     const filterValue = element.getAttribute('data-value'); // e.g. "Europe" or "all"
-    const isMultiSelect = Boolean(event && (event.ctrlKey || event.metaKey));
+    const isMultiSelect = this.isMultiSelectFilterEvent(event);
     const tags = element.parentNode.querySelectorAll('.filter-tag');
 
     let currentSelection = this.activeFilters[filterType] || ['all'];
@@ -3480,6 +3505,11 @@ class VexillaApp {
     document.getElementById('modal-mnemonic').textContent = flag.fact;
     this.renderFlagLearningDetails(document.getElementById('modal-learning-details'), flag);
     this.renderCountryLocatorMap(document.getElementById('modal-locator-map'), flag);
+    const modalMapLink = document.getElementById('modal-map-link');
+    if (modalMapLink) {
+      modalMapLink.dataset.flagCode = flag.code;
+      modalMapLink.setAttribute('aria-label', `Show ${flag.name} on the world map`);
+    }
 
     const modal = document.getElementById('flag-detail-modal');
     modal.classList.add('active');
@@ -4937,7 +4967,11 @@ class VexillaApp {
 
       const selectUnplacedFlag = (flag, shouldFocusMap = false) => {
         renderUnplacedDetail(flag);
-        if (shouldFocusMap) focusMainMapOnFlag(flag);
+        if (shouldFocusMap) {
+          this.mapRouteFlagCode = flag.code;
+          focusMainMapOnFlag(flag, { persistentHighlight: true });
+          this.updateUrlFromState({ replace: true });
+        }
       };
 
       if (unplacedToggle && unplacedPanel && unplacedList && unplacedDetail) {
@@ -5317,7 +5351,7 @@ class VexillaApp {
         setPersistentMapTarget(options.persistentHighlight ? flag.code : '');
         if (!options.persistentHighlight) this.mapRouteFlagCode = '';
         clearCountryHighlight();
-        highlightCountryFromFinder(flag.code);
+        if (!options.persistentHighlight) highlightCountryFromFinder(flag.code);
         const currentTransform = window.d3.zoomTransform(svg);
         const isMobileMap = window.matchMedia('(max-width: 768px)').matches;
         const focusScale = options.preserveScale ? currentTransform.k : Math.max(currentTransform.k, isMobileMap ? 12 : 9);

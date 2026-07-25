@@ -9,7 +9,7 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="styles.css?v=60" />
+    <link rel="stylesheet" href="styles.css?v=64" />
   </head>
   <body>
     <div class="app-container">
@@ -113,15 +113,7 @@
             <span class="global-xp-level" id="global-xp-level">Level 1</span>
             <strong id="global-xp-total">0 XP</strong>
           </div>
-          <div
-            class="global-xp-meter"
-            id="global-xp-meter"
-            role="progressbar"
-            aria-label="XP progress to next explorer level"
-            aria-valuemin="0"
-            aria-valuemax="250"
-            aria-valuenow="0"
-          >
+          <div class="global-xp-meter" id="global-xp-meter" role="progressbar" aria-label="XP progress to next explorer level" aria-valuemin="0" aria-valuemax="250" aria-valuenow="0">
             <div id="global-xp-bar"></div>
           </div>
           <div class="global-xp-caption">
@@ -438,7 +430,10 @@
             <div class="flashcard-setup-section flashcard-continent-section">
               <div class="quiz-setup-heading">
                 <span class="filter-label">Study pool</span>
-                <p class="filter-hint">Click to switch. Hold Ctrl to combine continents.</p>
+                <p class="filter-hint">
+                  <span class="desktop-filter-hint">Click to switch. Hold Ctrl to combine continents.</span>
+                  <span class="touch-filter-hint">Tap continents to add or remove them.</span>
+                </p>
               </div>
               <div class="filter-group flashcard-continent-options">
                 <button class="filter-tag flashcards-continent-tag active" data-continent="all" onclick="app.selectFlashcardContinent(this, event)">All</button>
@@ -496,11 +491,20 @@
                     </div>
                     <div class="card-mnemonic-box" id="card-mnemonic">The French Tricolor. Blue is associated with liberty, white with equality, and red with fraternity.</div>
                     <div class="flashcard-locator-panel" id="card-locator-panel" hidden onclick="event.stopPropagation()">
-                      <span class="flashcard-locator-label">World location</span>
+                      <div class="flag-locator-heading">
+                        <span class="flashcard-locator-label">World location</span>
+                        <button class="detail-map-link" id="card-map-link" type="button" aria-label="Show this country on the world map" onclick="app.navigateFlagToMap(this.dataset.flagCode, event)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+                            <path d="M9 3v15"></path>
+                            <path d="M15 6v15"></path>
+                          </svg>
+                          <span>Map</span>
+                        </button>
+                      </div>
                       <div class="flag-locator-map compact flashcard-locator-map" id="card-locator-map"></div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -582,7 +586,10 @@
             <div class="quiz-setup-section quiz-continent-section">
               <div class="quiz-setup-heading">
                 <span class="filter-label">Quiz pool</span>
-                <p class="filter-hint">Click to switch. Hold Ctrl to combine continents.</p>
+                <p class="filter-hint">
+                  <span class="desktop-filter-hint">Click to switch. Hold Ctrl to combine continents.</span>
+                  <span class="touch-filter-hint">Tap continents to add or remove them.</span>
+                </p>
               </div>
               <div class="filter-group quiz-continent-options">
                 <button class="filter-tag quiz-continent-tag active" data-continent="all" onclick="app.selectQuizContinent(this, event)">All</button>
@@ -704,7 +711,10 @@
               <button class="filter-tag match-continent-tag" data-continent="Africa" onclick="app.selectMatchContinent(this, event)">Africa</button>
               <button class="filter-tag match-continent-tag" data-continent="Oceania" onclick="app.selectMatchContinent(this, event)">Oceania</button>
             </div>
-            <p class="filter-hint">Click a continent to switch match pools. Hold Ctrl while clicking to combine continents.</p>
+            <p class="filter-hint">
+              <span class="desktop-filter-hint">Click a continent to switch match pools. Hold Ctrl while clicking to combine continents.</span>
+              <span class="touch-filter-hint">Tap continents to add or remove them.</span>
+            </p>
           </div>
 
           <div class="game-controls-header">
@@ -720,11 +730,6 @@
               <span>Details Used</span>
               <strong id="match-help-count">0</strong>
             </div>
-          </div>
-
-          <div class="match-keyboard-legend" aria-label="Match game keyboard shortcuts">
-            <span><kbd>QWE · ASD</kbd> countries</span>
-            <span><kbd>IOP · JKL</kbd> flags</span>
           </div>
 
           <!-- Grid Container for matching cards -->
@@ -758,23 +763,34 @@
 
         <!-- ================= ENCYCLOPEDIA VIEW ================= -->
         <section id="encyclopedia-view" class="view-section">
-          <header class="page-header">
-            <h1 class="page-title">Flag Atlas & Encyclopedia</h1>
-            <p class="page-subtitle">Search and filter through all 197 country flags. Click a flag to learn more about its geography and design history.</p>
+          <header class="page-header back-nav-container contextual-page-header">
+            <button class="back-btn mobile-section-back" type="button" aria-label="Back to dashboard" onclick="app.switchView('dashboard')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <div>
+              <h1 class="page-title">Flag Atlas & Encyclopedia</h1>
+              <p class="page-subtitle">Search and filter through all 197 country flags. Click a flag to learn more about its geography and design history.</p>
+            </div>
           </header>
 
           <!-- Search & Filter Controls Panel -->
           <div class="search-filter-panel glass-panel">
-            <div class="search-box-container">
-              <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input type="text" class="search-input" id="atlas-search-input" placeholder="Search by country name, capital, or color..." oninput="app.filterAtlas()" />
-              <span class="search-shortcut-hint" aria-hidden="true">/</span>
-            </div>
-            <div class="filter-status-row">
-              <p class="filter-hint">Click a tag to switch filters. Hold Ctrl while clicking to combine tags.</p>
+            <div class="atlas-search-row">
+              <div class="search-box-container">
+                <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" class="search-input" id="atlas-search-input" placeholder="Search by country name, capital, or color..." oninput="app.filterAtlas()" />
+                <span class="search-shortcut-hint" aria-hidden="true">/</span>
+              </div>
+              <p class="filter-hint">
+                <span class="desktop-filter-hint">Click to switch · Ctrl + click to combine</span>
+                <span class="touch-filter-hint">Tap filters to add or remove them.</span>
+              </p>
               <div class="atlas-status-tools">
                 <span class="atlas-result-summary" id="atlas-result-summary">197 of 197 flags shown</span>
                 <div class="atlas-view-toggle" role="group" aria-label="Atlas display mode">
@@ -847,9 +863,17 @@
 
         <!-- ================= WORLD MAP VIEW ================= -->
         <section id="map-view" class="view-section">
-          <header class="page-header">
-            <h1 class="page-title">World Map</h1>
-            <p class="page-subtitle">Explore country outlines on a Mercator map with flag markers for every country that can be located.</p>
+          <header class="page-header back-nav-container contextual-page-header">
+            <button class="back-btn mobile-section-back" type="button" aria-label="Back to dashboard" onclick="app.switchView('dashboard')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <div>
+              <h1 class="page-title">World Map</h1>
+              <p class="page-subtitle">Explore country outlines on a Mercator map with flag markers for every country that can be located.</p>
+            </div>
           </header>
 
           <div class="map-panel glass-panel">
@@ -910,8 +934,8 @@
                   <span class="map-kicker">Choose your own route</span>
                   <h3>Travel by recognizing each destination's flag</h3>
                   <p>
-                    Correct answers earn journey score and 10 Explorer XP. Every 10 flag questions also awards the same accuracy and perfect XP bonuses as Quiz Mode.
-                    Score streak bonuses have no limit; a miss resets the streak.
+                    Correct answers earn journey score and 10 Explorer XP. Every 10 flag questions also awards the same accuracy and perfect XP bonuses as Quiz Mode. Score streak bonuses have no
+                    limit; a miss resets the streak.
                   </p>
                 </div>
                 <button class="primary-btn compact-btn" id="passport-start-button" type="button" onclick="app.startPassportJourney()">Start journey</button>
@@ -929,9 +953,7 @@
                   <div class="passport-route-hint" id="passport-route-hint" role="status" aria-live="polite">Choose a highlighted destination on the map.</div>
                 </div>
                 <div class="passport-journey-stats" aria-label="Journey statistics">
-                  <span class="passport-score-stat" title="Points earned in this journey">
-                    <strong id="passport-score">0</strong> score
-                  </span>
+                  <span class="passport-score-stat" title="Points earned in this journey"> <strong id="passport-score">0</strong> score </span>
                   <span class="passport-best-stat" title="Most points earned in one journey"><strong id="passport-best-score">0</strong> best</span>
                   <span title="Correct answers out of flag questions answered"><strong id="passport-correct-count">0 / 0</strong> correct</span>
                   <button class="passport-remaining-button" id="passport-remaining-button" type="button" aria-expanded="false" aria-controls="passport-remaining-panel" hidden>
@@ -1002,9 +1024,17 @@
 
         <!-- ================= ACHIEVEMENTS / PROGRESS PANEL ================= -->
         <section id="achievements-view" class="view-section">
-          <header class="page-header">
-            <h1 class="page-title">Progress & Achievements</h1>
-            <p class="page-subtitle">Unlock cards by studying and score perfect marks in quizzes to earn special medals.</p>
+          <header class="page-header back-nav-container contextual-page-header">
+            <button class="back-btn mobile-section-back" type="button" aria-label="Back to dashboard" onclick="app.switchView('dashboard')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <div>
+              <h1 class="page-title">Progress & Achievements</h1>
+              <p class="page-subtitle">Unlock cards by studying and score perfect marks in quizzes to earn special medals.</p>
+            </div>
           </header>
 
           <section class="explorer-progress-panel glass-panel" aria-labelledby="explorer-progress-title">
@@ -1020,15 +1050,7 @@
                 </div>
                 <strong id="progress-explorer-total-xp">0 total XP</strong>
               </div>
-              <div
-                class="explorer-xp-meter"
-                id="progress-xp-meter"
-                role="progressbar"
-                aria-label="XP progress to next explorer level"
-                aria-valuemin="0"
-                aria-valuemax="250"
-                aria-valuenow="0"
-              >
+              <div class="explorer-xp-meter" id="progress-xp-meter" role="progressbar" aria-label="XP progress to next explorer level" aria-valuemin="0" aria-valuemax="250" aria-valuenow="0">
                 <div id="progress-xp-level-bar"></div>
               </div>
               <div class="explorer-progress-caption">
@@ -1240,6 +1262,17 @@
 
         <div class="card-mnemonic-box" id="modal-mnemonic">Known as Hinomaru (circle of the sun). A solid red disk representing the rising sun centered on a plain white field.</div>
         <div class="flag-learning-details" id="modal-learning-details"></div>
+        <div class="flag-locator-heading modal-locator-heading">
+          <span class="flashcard-locator-label">World location</span>
+          <button class="detail-map-link" id="modal-map-link" type="button" aria-label="Show this country on the world map" onclick="app.navigateFlagToMap(this.dataset.flagCode, event)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+              <path d="M9 3v15"></path>
+              <path d="M15 6v15"></path>
+            </svg>
+            <span>Map</span>
+          </button>
+        </div>
         <div class="flag-locator-map" id="modal-locator-map"></div>
       </div>
     </div>
@@ -1249,14 +1282,16 @@
       id="level-up-dialog"
       aria-labelledby="level-up-title"
       aria-describedby="level-up-message"
-      oncancel="event.preventDefault(); app.closeLevelUpCelebration()"
-      onclick="if (event.target === this) app.closeLevelUpCelebration()"
+      oncancel="
+        event.preventDefault();
+        app.closeLevelUpCelebration();
+      "
+      onclick="if (event.target === this) app.closeLevelUpCelebration();"
     >
       <div class="level-up-celebration">
         <div class="level-up-burst" aria-hidden="true">
-          <i style="--ray: 0"></i><i style="--ray: 1"></i><i style="--ray: 2"></i><i style="--ray: 3"></i>
-          <i style="--ray: 4"></i><i style="--ray: 5"></i><i style="--ray: 6"></i><i style="--ray: 7"></i>
-          <i style="--ray: 8"></i><i style="--ray: 9"></i><i style="--ray: 10"></i><i style="--ray: 11"></i>
+          <i style="--ray: 0"></i><i style="--ray: 1"></i><i style="--ray: 2"></i><i style="--ray: 3"></i> <i style="--ray: 4"></i><i style="--ray: 5"></i><i style="--ray: 6"></i
+          ><i style="--ray: 7"></i> <i style="--ray: 8"></i><i style="--ray: 9"></i><i style="--ray: 10"></i><i style="--ray: 11"></i>
           <div class="level-up-medallion">
             <span>Level</span>
             <strong id="level-up-number">2</strong>
@@ -1283,15 +1318,7 @@
             <span id="level-up-next-label">Progress to Level 3</span>
             <strong id="level-up-next-value">300 XP needed</strong>
           </div>
-          <div
-            class="level-up-meter"
-            id="level-up-meter"
-            role="progressbar"
-            aria-label="XP progress to the next Explorer level"
-            aria-valuemin="0"
-            aria-valuemax="300"
-            aria-valuenow="0"
-          >
+          <div class="level-up-meter" id="level-up-meter" role="progressbar" aria-label="XP progress to the next Explorer level" aria-valuemin="0" aria-valuemax="300" aria-valuenow="0">
             <div id="level-up-progress-bar"></div>
           </div>
           <small id="level-up-progress-copy">0 / 300 XP</small>
@@ -1306,19 +1333,25 @@
       id="passport-restart-dialog"
       aria-labelledby="passport-restart-title"
       aria-describedby="passport-restart-copy"
-      oncancel="event.preventDefault(); app.cancelPassportJourneyRestart()"
-      onclick="if (event.target === this) app.cancelPassportJourneyRestart()"
+      oncancel="
+        event.preventDefault();
+        app.cancelPassportJourneyRestart();
+      "
+      onclick="if (event.target === this) app.cancelPassportJourneyRestart();"
     >
       <div class="confirmation-dialog-content">
         <div class="confirmation-dialog-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 3 3 9 9 9" /></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <polyline points="3 3 3 9 9 9" />
+          </svg>
         </div>
         <div>
           <span class="section-kicker">Passport Journey</span>
           <h2 id="passport-restart-title">Start a new journey?</h2>
           <p id="passport-restart-copy">
-            Your current route with <strong id="passport-restart-visited-count">0 countries</strong> visited will be reset.
-            Your best score, lifetime achievements, and Passport statistics will remain intact.
+            Your current route with <strong id="passport-restart-visited-count">0 countries</strong> visited will be reset. Your best score, lifetime achievements, and Passport statistics will remain
+            intact.
           </p>
         </div>
       </div>
@@ -1333,12 +1366,21 @@
       id="reset-progress-dialog"
       aria-labelledby="reset-progress-title"
       aria-describedby="reset-progress-copy"
-      oncancel="event.preventDefault(); app.cancelResetProgressData()"
-      onclick="if (event.target === this) app.cancelResetProgressData()"
+      oncancel="
+        event.preventDefault();
+        app.cancelResetProgressData();
+      "
+      onclick="if (event.target === this) app.cancelResetProgressData();"
     >
       <div class="confirmation-dialog-content">
         <div class="confirmation-dialog-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M8 6V4h8v2" /><line x1="10" y1="10" x2="10" y2="16" /><line x1="14" y1="10" x2="14" y2="16" /></svg>
+          <svg viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M8 6V4h8v2" />
+            <line x1="10" y1="10" x2="10" y2="16" />
+            <line x1="14" y1="10" x2="14" y2="16" />
+          </svg>
         </div>
         <div>
           <span class="section-kicker">Settings</span>
@@ -1361,7 +1403,7 @@
     <!-- Load Data and App Controller -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-    <script src="data.js?v=60"></script>
-    <script src="app.js?v=60"></script>
+    <script src="data.js?v=64"></script>
+    <script src="app.js?v=64"></script>
   </body>
 </html>
