@@ -3520,27 +3520,31 @@ h4 {
   --map-continent-fill: rgba(244, 114, 182, 0.065);
 }
 
-.map-country.transcontinental-russia {
+.map-country.transcontinental-country {
   fill: transparent;
 }
 
-.russia-continent-split {
+.transcontinental-split-layer {
   pointer-events: none;
 }
 
-.russia-continent-fill {
+.transcontinental-region-fill {
   transition: opacity 0.12s ease;
 }
 
-.russia-europe-fill {
+.transcontinental-region-fill.region-africa {
+  fill: rgba(52, 211, 153, 0.075);
+}
+
+.transcontinental-region-fill.region-europe {
   fill: rgba(167, 139, 250, 0.075);
 }
 
-.russia-asia-fill {
+.transcontinental-region-fill.region-asia {
   fill: rgba(251, 191, 36, 0.065);
 }
 
-.russia-continent-boundary {
+.transcontinental-continent-boundary {
   fill: none;
   stroke: rgba(226, 232, 240, 0.58);
   stroke-width: 1.1;
@@ -3548,14 +3552,14 @@ h4 {
   vector-effect: non-scaling-stroke;
 }
 
-.map-country.transcontinental-russia:hover ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-hovered ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-route-target ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-journey-option ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-journey-current ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-journey-backtrack ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-journey-target ~ .russia-continent-split .russia-continent-fill,
-.map-country.transcontinental-russia.is-journey-guided ~ .russia-continent-split .russia-continent-fill {
+.map-country.transcontinental-country:hover + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-hovered + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-route-target + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-journey-option + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-journey-current + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-journey-backtrack + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-journey-target + .transcontinental-split-layer .transcontinental-region-fill,
+.map-country.transcontinental-country.is-journey-guided + .transcontinental-split-layer .transcontinental-region-fill {
   opacity: 0;
 }
 

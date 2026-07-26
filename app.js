@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=67', './data.js?v=67', './app.js?v=67', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=68', './data.js?v=68', './app.js?v=68', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -4444,6 +4444,7 @@ class VexillaApp {
       d3svg.append('rect').attr('class', 'map-ocean').attr('width', width).attr('height', height);
 
       const countryLayer = d3svg.append('g').attr('class', 'country-boundaries');
+      const transcontinentalCountryCodes = new Set(['ru', 'kz', 'tr', 'eg']);
       let clearPersistentMapTargetForFlag = () => false;
 
       countryLayer
@@ -4453,7 +4454,9 @@ class VexillaApp {
         .attr('class', (d) => {
           const flag = getFlagForCountry(d);
           if (!flag) return 'map-country';
-          if (flag.code === 'ru') return 'map-country has-flag-data transcontinental-russia';
+          if (transcontinentalCountryCodes.has(flag.code)) {
+            return `map-country has-flag-data transcontinental-country transcontinental-${flag.code}`;
+          }
           const continentClass = flag.continent.toLowerCase().replace(/\s+/g, '-');
           return `map-country has-flag-data continent-${continentClass}`;
         })
@@ -4469,53 +4472,106 @@ class VexillaApp {
         .append('title')
         .text((d) => d.properties?.name || 'Country');
 
-      const russiaCountry = countries.find((country) => getFlagForCountry(country)?.code === 'ru');
-      if (russiaCountry) {
-        const russiaClipId = 'map-russia-continent-clip';
-        const russiaBoundaryCoordinates = [
-          [68.5, 72],
-          [67.5, 69],
-          [65.5, 65.5],
-          [63.5, 62],
-          [61.5, 58.5],
-          [59.5, 55],
-          [58.5, 52.5],
-          [57.5, 50.8],
-          [54.5, 49.5],
-          [51.8, 47.2],
-        ];
-        const russiaBoundaryPoints = russiaBoundaryCoordinates.map((coordinates) => projection(coordinates));
-        const [northPoint] = russiaBoundaryPoints;
-        const southPoint = russiaBoundaryPoints[russiaBoundaryPoints.length - 1];
-        const boundarySegments = russiaBoundaryPoints.map(([x, y]) => `L${x},${y}`).join('');
+      const transcontinentalSplits = [
+        {
+          code: 'ru',
+          westRegion: 'europe',
+          eastRegion: 'asia',
+          boundaryCoordinates: [
+            [68.5, 72],
+            [67.5, 69],
+            [65.5, 65.5],
+            [63.5, 62],
+            [61.5, 58.5],
+            [59.5, 55],
+            [58.5, 52.5],
+            [57.5, 50.8],
+            [54.5, 49.5],
+            [51.8, 47.2],
+          ],
+        },
+        {
+          code: 'kz',
+          westRegion: 'europe',
+          eastRegion: 'asia',
+          boundaryCoordinates: [
+            [54.7, 56],
+            [54.6, 52],
+            [53.2, 51.4],
+            [51.4, 51.2],
+            [51.2, 49.5],
+            [51.9, 47.1],
+            [51.9, 44],
+          ],
+        },
+        {
+          code: 'eg',
+          westRegion: 'africa',
+          eastRegion: 'asia',
+          boundaryCoordinates: [
+            [32.32, 32],
+            [32.3, 31.25],
+            [32.27, 30.6],
+            [32.48, 30],
+            [32.6, 28.5],
+          ],
+        },
+        {
+          code: 'tr',
+          westRegion: 'europe',
+          eastRegion: 'asia',
+          showBoundary: false,
+          boundaryCoordinates: [
+            [29.2, 42.5],
+            [29.1, 41.2],
+            [29, 40.8],
+            [28.5, 40.7],
+            [27.7, 40.45],
+            [26.1, 39.9],
+            [24, 38],
+            [24, 35],
+          ],
+        },
+      ];
 
-        d3svg
-          .append('defs')
-          .append('clipPath')
-          .attr('id', russiaClipId)
-          .append('path')
-          .attr('d', path(russiaCountry));
+      transcontinentalSplits.forEach((split) => {
+        const country = countries.find((item) => getFlagForCountry(item)?.code === split.code);
+        const countryNode = countryLayer.select(`.map-country[data-flag-code="${split.code}"]`).node();
+        if (!country || !countryNode) return;
 
-        const russiaSplitLayer = countryLayer
-          .append('g')
-          .attr('class', 'russia-continent-split')
-          .attr('clip-path', `url(#${russiaClipId})`)
+        const clipId = `map-${split.code}-continent-clip`;
+        const boundaryPoints = split.boundaryCoordinates.map((coordinates) => projection(coordinates));
+        const [northPoint] = boundaryPoints;
+        const southPoint = boundaryPoints[boundaryPoints.length - 1];
+        const boundarySegments = boundaryPoints.map(([x, y]) => `L${x},${y}`).join('');
+
+        d3svg.append('defs').append('clipPath').attr('id', clipId).append('path').attr('d', path(country));
+
+        const splitNode = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        countryNode.after(splitNode);
+        const splitLayer = window.d3
+          .select(splitNode)
+          .attr('class', `transcontinental-split-layer transcontinental-split-${split.code}`)
+          .attr('clip-path', `url(#${clipId})`)
           .attr('aria-hidden', 'true');
 
-        russiaSplitLayer
+        splitLayer
           .append('path')
-          .attr('class', 'russia-continent-fill russia-europe-fill')
+          .attr('class', `transcontinental-region-fill region-${split.westRegion}`)
           .attr('d', `M${northPoint[0]},-100${boundarySegments}L${southPoint[0]},${height + 100}L-100,${height + 100}L-100,-100Z`);
-        russiaSplitLayer
+        splitLayer
           .append('path')
-          .attr('class', 'russia-continent-fill russia-asia-fill')
+          .attr('class', `transcontinental-region-fill region-${split.eastRegion}`)
           .attr('d', `M${northPoint[0]},-100${boundarySegments}L${southPoint[0]},${height + 100}L${width + 100},${height + 100}L${width + 100},-100Z`);
-        russiaSplitLayer
-          .append('path')
-          .datum({ type: 'LineString', coordinates: russiaBoundaryCoordinates })
-          .attr('class', 'russia-continent-boundary')
-          .attr('d', path);
-      }
+
+        if (split.showBoundary !== false) {
+          splitLayer
+            .append('path')
+            .datum({ type: 'LineString', coordinates: split.boundaryCoordinates })
+            .attr('class', 'transcontinental-continent-boundary')
+            .attr('d', path);
+        }
+      });
 
       let activeHighlightedFlagCode = '';
       let finderHighlightedFlagCode = '';
