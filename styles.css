@@ -3552,6 +3552,19 @@ h4 {
   vector-effect: non-scaling-stroke;
 }
 
+.map-equator {
+  fill: none;
+  stroke: rgba(125, 211, 252, 0.52);
+  stroke-width: 1.15;
+  stroke-dasharray: 7 5 1.5 5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+[data-theme='light'] .map-equator {
+  stroke: rgba(3, 105, 161, 0.52);
+}
+
 .map-country.transcontinental-country:hover + .transcontinental-split-layer .transcontinental-region-fill,
 .map-country.transcontinental-country.is-hovered + .transcontinental-split-layer .transcontinental-region-fill,
 .map-country.transcontinental-country.is-route-target + .transcontinental-split-layer .transcontinental-region-fill,

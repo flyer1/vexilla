@@ -164,7 +164,7 @@ class VexillaApp {
       button.textContent = 'Caching...';
     }
 
-    const sameOriginAssets = ['./', './index.html', './styles.css?v=68', './data.js?v=68', './app.js?v=68', './favicon.ico', './manifest.json', './sw.js'];
+    const sameOriginAssets = ['./', './index.html', './styles.css?v=70', './data.js?v=70', './app.js?v=70', './favicon.ico', './manifest.json', './sw.js'];
     const sharedAssets = [
       this.mapDataUrl,
       'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
@@ -4429,6 +4429,7 @@ class VexillaApp {
         },
       );
       const path = window.d3.geoPath(projection);
+      const projectedWorldBounds = path.bounds({ type: 'Sphere' });
       const d3svg = window.d3.select(svg);
       const flagLookup = new Map(this.flags.map((flag) => [this.normalizeCountryName(flag.name), flag]));
       const aliases = this.getMapNameAliases();
@@ -4572,6 +4573,19 @@ class VexillaApp {
             .attr('d', path);
         }
       });
+
+      countryLayer
+        .append('path')
+        .datum({
+          type: 'LineString',
+          coordinates: window.d3.range(-180, 181, 2).map((longitude) => [longitude, 0]),
+        })
+        .attr('class', 'map-equator')
+        .attr('d', path)
+        .attr('role', 'img')
+        .attr('aria-label', 'Equator at zero degrees latitude')
+        .append('title')
+        .text('Equator (0° latitude)');
 
       let activeHighlightedFlagCode = '';
       let finderHighlightedFlagCode = '';
@@ -5468,10 +5482,7 @@ class VexillaApp {
           return !event.ctrlKey && !event.button;
         })
         .scaleExtent([1, 100])
-        .translateExtent([
-          [0, 0],
-          [width, height],
-        ])
+        .translateExtent(projectedWorldBounds)
         .extent([
           [0, 0],
           [width, height],
